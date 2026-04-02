@@ -2467,6 +2467,59 @@ const AppContent = () => {
   const [submitStatus, setSubmitStatus] = useState("idle");
   const lastCartDebugRef = useRef(null);
 
+  const saveToHistory = useCallback((newElements, newBackground) => {
+    const elementsSource =
+      typeof newElements !== "undefined" ? newElements : elementsRef.current;
+    const backgroundSource =
+      typeof newBackground !== "undefined"
+        ? newBackground
+        : backgroundRef.current;
+
+    const cleanElements = safeClone(elementsSource);
+    const cleanBackground = safeClone(backgroundSource);
+    const nextEntry = { elements: cleanElements, background: cleanBackground };
+
+    const currentHead = historyRef.current[historyIndexRef.current];
+    if (currentHead) {
+      const currentSerialized = JSON.stringify(currentHead);
+      const nextSerialized = JSON.stringify(nextEntry);
+      if (currentSerialized === nextSerialized) return;
+    }
+
+    const nextHistory = historyRef.current.slice(
+      0,
+      historyIndexRef.current + 1,
+    );
+    nextHistory.push(nextEntry);
+
+    const trimmedHistory = nextHistory.slice(-20);
+    const nextIndex = trimmedHistory.length - 1;
+
+    historyRef.current = trimmedHistory;
+    historyIndexRef.current = nextIndex;
+    setHistory(trimmedHistory);
+    setHistoryIndex(nextIndex);
+  }, []);
+
+  const applyElementsUpdate = useCallback(
+    (updater, options = {}) => {
+      const { saveHistory = true } = options;
+      const currentElements = elementsRef.current;
+      const nextElements =
+        typeof updater === "function" ? updater(currentElements) : updater;
+
+      elementsRef.current = nextElements;
+      setElements(nextElements);
+
+      if (saveHistory) {
+        saveToHistory(nextElements, backgroundRef.current);
+      }
+
+      return nextElements;
+    },
+    [saveToHistory],
+  );
+
   // --- FABRIC.JS INTEGRATION ---
   const fabricCanvasRef = useRef(null);
   const syncLockRef = useRef(false); // Prevents infinite loops between React and Fabric
@@ -2559,7 +2612,7 @@ const AppContent = () => {
         fabricCanvasRef.current = null;
       }
     };
-  }, [ARTBOARD_W, ARTBOARD_H]); // Intentionally not re-running on state changes.
+  }, [ARTBOARD_W, ARTBOARD_H, applyElementsUpdate]); // Intentionally not re-running on state changes.
 
   // ----------------------------------------------------
   // REACT -> FABRIC SYNC (Listen to React state changes and draw to canvas)
@@ -3127,59 +3180,6 @@ const AppContent = () => {
     }, 1000);
     return () => clearTimeout(timer);
   }, [elements, background]);
-
-  const saveToHistory = useCallback((newElements, newBackground) => {
-    const elementsSource =
-      typeof newElements !== "undefined" ? newElements : elementsRef.current;
-    const backgroundSource =
-      typeof newBackground !== "undefined"
-        ? newBackground
-        : backgroundRef.current;
-
-    const cleanElements = safeClone(elementsSource);
-    const cleanBackground = safeClone(backgroundSource);
-    const nextEntry = { elements: cleanElements, background: cleanBackground };
-
-    const currentHead = historyRef.current[historyIndexRef.current];
-    if (currentHead) {
-      const currentSerialized = JSON.stringify(currentHead);
-      const nextSerialized = JSON.stringify(nextEntry);
-      if (currentSerialized === nextSerialized) return;
-    }
-
-    const nextHistory = historyRef.current.slice(
-      0,
-      historyIndexRef.current + 1,
-    );
-    nextHistory.push(nextEntry);
-
-    const trimmedHistory = nextHistory.slice(-20);
-    const nextIndex = trimmedHistory.length - 1;
-
-    historyRef.current = trimmedHistory;
-    historyIndexRef.current = nextIndex;
-    setHistory(trimmedHistory);
-    setHistoryIndex(nextIndex);
-  }, []);
-
-  const applyElementsUpdate = useCallback(
-    (updater, options = {}) => {
-      const { saveHistory = true } = options;
-      const currentElements = elementsRef.current;
-      const nextElements =
-        typeof updater === "function" ? updater(currentElements) : updater;
-
-      elementsRef.current = nextElements;
-      setElements(nextElements);
-
-      if (saveHistory) {
-        saveToHistory(nextElements, backgroundRef.current);
-      }
-
-      return nextElements;
-    },
-    [saveToHistory],
-  );
 
   const updateSelectedElement = useCallback(
     (patchOrUpdater, options = {}) => {
