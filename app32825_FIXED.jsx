@@ -158,7 +158,7 @@ const transformHandles = [
 // --- RELEASE FEATURE LOCKS (temporary stability mode) ---
 const RELEASE_VISIBLE_SHAPES = ["rect", "circle", "star", "triangle"];
 const RELEASE_DIRECT_SELECT_TYPES = ["rect", "star", "triangle"];
-const RELEASE_ENABLE_PATHFINDER = false;
+const RELEASE_ENABLE_PATHFINDER = true;
 const MAX_UPLOAD_FILE_SIZE_BYTES = 2 * 1024 * 1024;
 const CART_PREVIEW_MAX_DATA_URL_LENGTH = 85000;
 const PRODUCT_BACKGROUND_FETCH_LIMIT = 250;
@@ -2762,6 +2762,27 @@ const AppContent = () => {
             },
             { crossOrigin: "anonymous" },
           );
+        } else if (el.type === "compound") {
+          // Simulate compound shape via fabric Group
+          if (el.children && el.children.length === 2) {
+             const child1Path = getShapePathData(el.children[0], el.children[0].width, el.children[0].height);
+             const child2Path = getShapePathData(el.children[1], el.children[1].width, el.children[1].height);
+
+             // Very basic fallback simulation for rendering in fabric
+             const p1 = new fabric.Path(child1Path || "", { fill: el.color, left: el.children[0].localX, top: el.children[0].localY });
+             const p2 = new fabric.Path(child2Path || "", { fill: el.color, left: el.children[1].localX, top: el.children[1].localY });
+
+             if (el.operation === 'subtract') {
+                p2.globalCompositeOperation = 'destination-out';
+             } else if (el.operation === 'intersect') {
+                p2.globalCompositeOperation = 'destination-in';
+             } else if (el.operation === 'exclude') {
+                p2.globalCompositeOperation = 'xor';
+             }
+             fabObj = new fabric.Group([p1, p2], { ...commonProps, width: el.width, height: el.height });
+          } else {
+             fabObj = new fabric.Rect({ ...commonProps, width: el.width, height: el.height });
+          }
         } else {
           // Fallback for custom shapes (Star, Heart, etc.) - rendered as Path if getShapePathData works, otherwise Rect
           const pathData = getShapePathData(el, el.width, el.height);
