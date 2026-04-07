@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { fabric } from "fabric";
 import {
   Type,
   Square,
@@ -2466,6 +2467,376 @@ const AppContent = () => {
   const [submitStatus, setSubmitStatus] = useState("idle");
   const lastCartDebugRef = useRef(null);
 
+  const saveToHistory = useCallback((newElements, newBackground) => {
+    const elementsSource =
+      typeof newElements !== "undefined" ? newElements : elementsRef.current;
+    const backgroundSource =
+      typeof newBackground !== "undefined"
+        ? newBackground
+        : backgroundRef.current;
+
+    const cleanElements = safeClone(elementsSource);
+    const cleanBackground = safeClone(backgroundSource);
+    const nextEntry = { elements: cleanElements, background: cleanBackground };
+
+    const currentHead = historyRef.current[historyIndexRef.current];
+    if (currentHead) {
+      const currentSerialized = JSON.stringify(currentHead);
+      const nextSerialized = JSON.stringify(nextEntry);
+      if (currentSerialized === nextSerialized) return;
+    }
+
+    const nextHistory = historyRef.current.slice(
+      0,
+      historyIndexRef.current + 1,
+    );
+    nextHistory.push(nextEntry);
+
+    const trimmedHistory = nextHistory.slice(-20);
+    const nextIndex = trimmedHistory.length - 1;
+
+    historyRef.current = trimmedHistory;
+    historyIndexRef.current = nextIndex;
+    setHistory(trimmedHistory);
+    setHistoryIndex(nextIndex);
+  }, []);
+
+  const applyElementsUpdate = useCallback(
+    (updater, options = {}) => {
+      const { saveHistory = true } = options;
+      const currentElements = elementsRef.current;
+      const nextElements =
+        typeof updater === "function" ? updater(currentElements) : updater;
+
+      elementsRef.current = nextElements;
+      setElements(nextElements);
+
+      if (saveHistory) {
+        saveToHistory(nextElements, backgroundRef.current);
+      }
+
+      return nextElements;
+    },
+    [saveToHistory],
+  );
+
+  // --- FABRIC.JS INTEGRATION ---
+  const fabricCanvasRef = useRef(null);
+  const syncLockRef = useRef(false); // Prevents infinite loops between React and Fabric
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    // Initialize Fabric Canvas
+    const canvas = new fabric.Canvas(canvasRef.current, {
+      width: ARTBOARD_W,
+      height: ARTBOARD_H,
+      backgroundColor: "transparent",
+      preserveObjectStacking: true,
+      selection: true,
+      uniformScaling: false,
+    });
+
+    fabricCanvasRef.current = canvas;
+
+    // ----------------------------------------------------
+    // FABRIC -> REACT SYNC (Listen to user interactions on canvas)
+    // ----------------------------------------------------
+
+    const handleObjectModified = (e) => {
+      if (syncLockRef.current) return;
+      const target = e.target;
+      if (!target) return;
+
+      syncLockRef.current = true;
+
+      const updates = {};
+      if (target.type === "activeSelection") {
+        // Handle multi-select modification (optional phase 2)
+      } else {
+        const id = target.id;
+        updates.x = target.left;
+        updates.y = target.top;
+        updates.rotation = target.angle || 0;
+
+        // Fabric scales objects, but React state expects width/height changes for shapes
+        // Text requires scaleX/scaleY in React state as per existing logic
+        if (target.type === "i-text" || target.type === "text") {
+          updates.scaleX = target.scaleX;
+          updates.scaleY = target.scaleY;
+          updates.width = target.width; // update width too to avoid jumping
+        } else {
+          updates.width = target.width * target.scaleX;
+          updates.height = target.height * target.scaleY;
+          // reset scale in fabric so width/height take over
+          target.set({
+            width: updates.width,
+            height: updates.height,
+            scaleX: 1,
+            scaleY: 1,
+          });
+        }
+
+        applyElementsUpdate((prev) =>
+          prev.map((el) => (el.id === id ? { ...el, ...updates } : el)),
+        );
+      }
+
+      setTimeout(() => (syncLockRef.current = false), 10);
+    };
+
+    const handleSelectionCreated = (e) => {
+      if (syncLockRef.current) return;
+      const selected = e.selected || [];
+      const ids = selected.map((obj) => obj.id).filter(Boolean);
+      setSelectedIds(ids);
+    };
+
+    const handleSelectionCleared = () => {
+      if (syncLockRef.current) return;
+      setSelectedIds([]);
+    };
+
+    canvas.on("object:modified", handleObjectModified);
+    canvas.on("selection:created", handleSelectionCreated);
+    canvas.on("selection:updated", handleSelectionCreated);
+    canvas.on("selection:cleared", handleSelectionCleared);
+
+    return () => {
+      if (fabricCanvasRef.current) {
+        fabricCanvasRef.current.off("object:modified");
+        fabricCanvasRef.current.off("selection:created");
+        fabricCanvasRef.current.off("selection:updated");
+        fabricCanvasRef.current.off("selection:cleared");
+        fabricCanvasRef.current.dispose();
+        fabricCanvasRef.current = null;
+      }
+    };
+  }, [ARTBOARD_W, ARTBOARD_H, applyElementsUpdate]); // Intentionally not re-running on state changes.
+
+  // ----------------------------------------------------
+  // REACT -> FABRIC SYNC (Listen to React state changes and draw to canvas)
+  // ----------------------------------------------------
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || syncLockRef.current) return;
+
+    syncLockRef.current = true;
+
+    // Create a map of existing fabric objects
+    const existingObjects = canvas.getObjects().reduce((acc, obj) => {
+      if (obj.id) acc[obj.id] = obj;
+      return acc;
+    }, {});
+
+    let needsRender = false;
+
+    // Sync Background
+    const bgStr = background?.src || background?.color;
+    if (bgStr) {
+      if (background.src) {
+        fabric.Image.fromURL(
+          background.src,
+          (img) => {
+            // Fit image to canvas width/height preserving aspect ratio
+            const scale = Math.max(
+              ARTBOARD_W / img.width,
+              ARTBOARD_H / img.height,
+            );
+            img.set({
+              originX: "center",
+              originY: "center",
+              left: ARTBOARD_W / 2,
+              top: ARTBOARD_H / 2,
+              scaleX: scale,
+              scaleY: scale,
+            });
+            canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
+          },
+          { crossOrigin: "anonymous" },
+        );
+      } else if (background.color) {
+        canvas.setBackgroundColor(
+          background.color,
+          canvas.renderAll.bind(canvas),
+        );
+      }
+    } else {
+      canvas.setBackgroundColor("transparent", canvas.renderAll.bind(canvas));
+    }
+
+    // Sync Elements
+    const currentZIndexMap = elements.map((el) => el.id);
+
+    elements.forEach((el, index) => {
+      let fabObj = existingObjects[el.id];
+      const isSelected = selectedIds.includes(el.id);
+
+      const commonProps = {
+        id: el.id,
+        left: el.x,
+        top: el.y,
+        angle: el.rotation || 0,
+        opacity: el.opacity !== undefined ? el.opacity : 1,
+        fill: el.fillType === "gradient" ? el.color : el.color || "#000000", // Fallback solid color for gradient for now
+        visible: el.visible !== false,
+        selectable: !el.locked,
+        evented: !el.locked,
+        originX: "left",
+        originY: "top",
+        // Note: Triple Strokes disabled for phase 1
+        stroke:
+          el.strokes && el.strokes.length > 0 ? el.strokes[0].color : null,
+        strokeWidth:
+          el.strokes && el.strokes.length > 0 ? el.strokes[0].width : 0,
+      };
+
+      if (!fabObj) {
+        // Create new object
+        if (el.type === "rect") {
+          fabObj = new fabric.Rect({
+            ...commonProps,
+            width: el.width,
+            height: el.height,
+            rx: el.borderRadius,
+            ry: el.borderRadius,
+          });
+        } else if (el.type === "circle") {
+          fabObj = new fabric.Ellipse({
+            ...commonProps,
+            rx: el.width / 2,
+            ry: el.height / 2,
+          });
+        } else if (el.type === "triangle") {
+          fabObj = new fabric.Triangle({
+            ...commonProps,
+            width: el.width,
+            height: el.height,
+          });
+        } else if (el.type === "line") {
+          fabObj = new fabric.Line(
+            [0, el.height / 2, el.width, el.height / 2],
+            {
+              ...commonProps,
+              stroke: el.color,
+              strokeWidth: Math.max(2, el.height),
+            },
+          );
+        } else if (el.type === "text") {
+          fabObj = new fabric.IText(el.content || "", {
+            ...commonProps,
+            fontFamily: el.fontFamily || "Inter",
+            fontSize: el.fontSize || 32,
+            fontWeight: el.fontWeight || "bold",
+            fontStyle: el.fontStyle || "normal",
+            textAlign: el.textAlign || "left",
+            underline: el.textDecoration === "underline",
+            scaleX: el.scaleX || 1,
+            scaleY: el.scaleY || 1,
+          });
+
+          // IText specific event for editing text
+          fabObj.on("changed", function () {
+            if (syncLockRef.current) return;
+            syncLockRef.current = true;
+              const textVal = this.text;
+              applyElementsUpdate(prev => prev.map(item => item.id === el.id ? { ...item, content: textVal } : item));
+            setTimeout(() => (syncLockRef.current = false), 10);
+          });
+        } else if (el.type === "image") {
+          // Temporary placeholder, load image async
+          fabObj = new fabric.Rect({
+            ...commonProps,
+            width: el.width,
+            height: el.height,
+            fill: "#cccccc",
+          });
+          fabric.Image.fromURL(
+            el.src,
+            (img) => {
+              img.set({ ...commonProps, width: el.width, height: el.height });
+              canvas.remove(fabObj);
+              canvas.add(img);
+              canvas.moveTo(img, index);
+              canvas.renderAll();
+            },
+            { crossOrigin: "anonymous" },
+          );
+        } else {
+          // Fallback for custom shapes (Star, Heart, etc.) - rendered as Path if getShapePathData works, otherwise Rect
+          const pathData = getShapePathData(el, el.width, el.height);
+          if (pathData) {
+            fabObj = new fabric.Path(pathData, commonProps);
+          } else {
+            fabObj = new fabric.Rect({
+              ...commonProps,
+              width: el.width,
+              height: el.height,
+            });
+          }
+        }
+
+        if (fabObj) {
+          canvas.add(fabObj);
+          needsRender = true;
+        }
+      } else {
+        // Update existing object properties
+        if (el.type === "rect") {
+          fabObj.set({
+            ...commonProps,
+            width: el.width,
+            height: el.height,
+            rx: el.borderRadius,
+            ry: el.borderRadius,
+          });
+        } else if (el.type === "circle") {
+          fabObj.set({ ...commonProps, rx: el.width / 2, ry: el.height / 2 });
+        } else if (el.type === "text" && fabObj.type === "i-text") {
+          fabObj.set({
+            ...commonProps,
+            text: el.content || "",
+            fontFamily: el.fontFamily || "Inter",
+            fontSize: el.fontSize || 32,
+            fontWeight: el.fontWeight || "bold",
+            fontStyle: el.fontStyle || "normal",
+            textAlign: el.textAlign || "left",
+            underline: el.textDecoration === "underline",
+            scaleX: el.scaleX || 1,
+            scaleY: el.scaleY || 1,
+          });
+        } else {
+          // Generic update
+          fabObj.set({ ...commonProps, width: el.width, height: el.height });
+        }
+        needsRender = true;
+      }
+
+      // Ensure z-index is correct
+      canvas.moveTo(fabObj, index);
+
+      // Maintain selection mapping
+      if (isSelected && !canvas.getActiveObjects().includes(fabObj)) {
+        // If we want multiple selection sync later, adjust here
+        canvas.setActiveObject(fabObj);
+      }
+    });
+
+    // Remove deleted elements
+    Object.keys(existingObjects).forEach((id) => {
+      if (!currentZIndexMap.includes(id)) {
+        canvas.remove(existingObjects[id]);
+        needsRender = true;
+      }
+    });
+
+    if (needsRender) {
+      canvas.renderAll();
+    }
+
+    syncLockRef.current = false;
+  }, [elements, background, selectedIds, applyElementsUpdate]); // Note: We pass applyElementsUpdate safely
+
   const handleBackNavigation = useCallback(() => {
     if (typeof window === "undefined") return;
 
@@ -2809,59 +3180,6 @@ const AppContent = () => {
     }, 1000);
     return () => clearTimeout(timer);
   }, [elements, background]);
-
-  const saveToHistory = useCallback((newElements, newBackground) => {
-    const elementsSource =
-      typeof newElements !== "undefined" ? newElements : elementsRef.current;
-    const backgroundSource =
-      typeof newBackground !== "undefined"
-        ? newBackground
-        : backgroundRef.current;
-
-    const cleanElements = safeClone(elementsSource);
-    const cleanBackground = safeClone(backgroundSource);
-    const nextEntry = { elements: cleanElements, background: cleanBackground };
-
-    const currentHead = historyRef.current[historyIndexRef.current];
-    if (currentHead) {
-      const currentSerialized = JSON.stringify(currentHead);
-      const nextSerialized = JSON.stringify(nextEntry);
-      if (currentSerialized === nextSerialized) return;
-    }
-
-    const nextHistory = historyRef.current.slice(
-      0,
-      historyIndexRef.current + 1,
-    );
-    nextHistory.push(nextEntry);
-
-    const trimmedHistory = nextHistory.slice(-20);
-    const nextIndex = trimmedHistory.length - 1;
-
-    historyRef.current = trimmedHistory;
-    historyIndexRef.current = nextIndex;
-    setHistory(trimmedHistory);
-    setHistoryIndex(nextIndex);
-  }, []);
-
-  const applyElementsUpdate = useCallback(
-    (updater, options = {}) => {
-      const { saveHistory = true } = options;
-      const currentElements = elementsRef.current;
-      const nextElements =
-        typeof updater === "function" ? updater(currentElements) : updater;
-
-      elementsRef.current = nextElements;
-      setElements(nextElements);
-
-      if (saveHistory) {
-        saveToHistory(nextElements, backgroundRef.current);
-      }
-
-      return nextElements;
-    },
-    [saveToHistory],
-  );
 
   const updateSelectedElement = useCallback(
     (patchOrUpdater, options = {}) => {
@@ -3641,538 +3959,23 @@ const AppContent = () => {
     [ARTBOARD_H, ARTBOARD_W, applyBackgroundChange],
   );
 
-  const renderDesignToCanvas = useCallback(
-    async ({ width = ARTBOARD_W, height = ARTBOARD_H } = {}) => {
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(width));
-      canvas.height = Math.max(1, Math.round(height));
-      const ctx = canvas.getContext("2d");
-
-      if (!ctx) {
-        throw new Error("PNG export is unavailable in this browser.");
-      }
-
-      // Trik tambahan agar memastikan Font benar-benar di-load oleh browser sebelum diekspor ke Canvas
-      if (typeof document !== "undefined" && document.fonts) {
-        const exportFonts = elementsRef.current
-          .filter((el) => el.type === "text" && el.visible !== false)
-          .map(
-            (el) =>
-              `${el.fontStyle || "normal"} ${el.fontWeight || "bold"} ${Math.max(1, safeNum(el.fontSize, 32))}px "${el.fontFamily || "Inter"}"`,
-          )
-          .filter(Boolean);
-
-        try {
-          // Tarik paksa font secara asinkron
-          await Promise.all(
-            exportFonts.map((font) => document.fonts.load(font)),
-          );
-          // Tunggu maksimal 1.5 detik agar mesin canvas "sadar" font sudah ada
-          await Promise.race([
-            document.fonts.ready,
-            new Promise((r) => setTimeout(r, 1500)),
-          ]);
-          // Trik rahasia: Beri jeda kecil agar DOM selesai me-reflow font-nya
-          await new Promise((r) => setTimeout(r, 100));
-        } catch (fontError) {
-          console.warn(
-            "One or more fonts failed to finish loading before export.",
-            fontError,
-          );
-        }
-      }
-
-      const loadImageForCanvas = async (src) => {
-        if (!src) throw new Error("Missing image source.");
-
-        const loadFromImageElement = (value) =>
-          new Promise((resolve, reject) => {
-            const img = new Image();
-            // Hanya beri 'anonymous' jika itu bukan local/data/blob untuk mencegah tainted canvas
-            if (
-              typeof value === "string" &&
-              !value.startsWith("data:") &&
-              !value.startsWith("blob:")
-            ) {
-              img.crossOrigin = "anonymous";
-            }
-            img.onload = () => resolve(img);
-            img.onerror = () => {
-              // Jika gagal pakai anonymous, coba lagi tanpa anonymous (fallback)
-              if (img.crossOrigin === "anonymous") {
-                const fallbackImg = new Image();
-                fallbackImg.onload = () => resolve(fallbackImg);
-                fallbackImg.onerror = reject;
-                fallbackImg.src = value;
-              } else {
-                reject(new Error("Image failed to load"));
-              }
-            };
-            img.src = value;
-          });
-
-        try {
-          return await loadFromImageElement(src);
-        } catch (primaryError) {
-          // Fallback terakhir: fetch blob lewat API (berguna jika CORS header tidak dikirim server tapi fetch diizinkan)
-          if (
-            typeof fetch === "function" &&
-            typeof src === "string" &&
-            !src.startsWith("data:") &&
-            !src.startsWith("blob:")
-          ) {
-            try {
-              const response = await fetch(src, { mode: "cors" });
-              if (!response.ok) throw new Error("Image fetch failed.");
-              const blob = await response.blob();
-              const objectUrl = URL.createObjectURL(blob);
-              try {
-                const img = await loadFromImageElement(objectUrl);
-                return img;
-              } finally {
-                URL.revokeObjectURL(objectUrl);
-              }
-            } catch (secondaryError) {
-              throw secondaryError instanceof Error
-                ? secondaryError
-                : primaryError;
-            }
-          }
-          throw primaryError;
-        }
-      };
-
-      const strokeShape = (targetCtx, targetEl, w, h, typeFilter) => {
-        if (!targetEl.strokes || targetEl.strokes.length === 0) return;
-        const strokesArray = [...targetEl.strokes].reverse();
-
-        strokesArray.forEach((stroke) => {
-          const isOutside = stroke.alignment === "outside";
-          if (typeFilter === "outside" && !isOutside) return;
-          if (typeFilter === "inside-center" && isOutside) return;
-
-          const strokeWidth = safeNum(stroke.width, 0);
-          if (strokeWidth <= 0) return;
-
-          targetCtx.save();
-          targetCtx.strokeStyle = stroke.color;
-          targetCtx.lineJoin = stroke.join || "round";
-          targetCtx.lineCap = targetEl.type === "line" ? "round" : "butt";
-
-          if (targetEl.type === "line") {
-            targetCtx.lineWidth =
-              stroke.alignment === "center" || !stroke.alignment
-                ? strokeWidth
-                : strokeWidth * 2;
-            targetCtx.beginPath();
-            targetCtx.moveTo(0, h / 2);
-            targetCtx.lineTo(w, h / 2);
-            targetCtx.stroke();
-            targetCtx.restore();
-            return;
-          }
-
-          let p2d = null;
-          targetCtx.beginPath();
-          if (targetEl.type === "rect" && !targetEl.customPoints) {
-            if (
-              typeof targetCtx.roundRect === "function" &&
-              targetEl.borderRadius
-            ) {
-              targetCtx.roundRect(0, 0, w, h, targetEl.borderRadius);
-            } else {
-              targetCtx.rect(0, 0, w, h);
-            }
-          } else if (targetEl.type === "circle") {
-            targetCtx.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
-          } else {
-            const pathData = getShapePathData(targetEl, w, h);
-            if (pathData) p2d = new Path2D(pathData);
-          }
-
-          if (stroke.alignment === "inside") {
-            if (p2d) {
-              targetCtx.clip(p2d);
-              targetCtx.lineWidth = strokeWidth * 2;
-              targetCtx.stroke(p2d);
-            } else {
-              targetCtx.clip();
-              targetCtx.lineWidth = strokeWidth * 2;
-              targetCtx.stroke();
-            }
-          } else if (stroke.alignment === "outside") {
-            targetCtx.lineWidth = strokeWidth * 2;
-            if (p2d) targetCtx.stroke(p2d);
-            else targetCtx.stroke();
-          } else {
-            targetCtx.lineWidth = strokeWidth;
-            if (p2d) targetCtx.stroke(p2d);
-            else targetCtx.stroke();
-          }
-
-          targetCtx.restore();
-        });
-      };
-
-      const fillShape = (targetCtx, targetEl, w, h, fillStyle) => {
-        targetCtx.fillStyle = fillStyle;
-        targetCtx.beginPath();
-
-        if (targetEl.customPoints && targetEl.customPoints.length > 1) {
-          targetCtx.moveTo(
-            targetEl.customPoints[0].x,
-            targetEl.customPoints[0].y,
-          );
-          targetEl.customPoints
-            .slice(1)
-            .forEach((point) => targetCtx.lineTo(point.x, point.y));
-          targetCtx.closePath();
-          targetCtx.fill();
-          return;
-        }
-
-        if (targetEl.type === "rect") {
-          if (
-            typeof targetCtx.roundRect === "function" &&
-            targetEl.borderRadius
-          ) {
-            targetCtx.roundRect(0, 0, w, h, targetEl.borderRadius);
-          } else {
-            targetCtx.rect(0, 0, w, h);
-          }
-          targetCtx.fill();
-          return;
-        }
-
-        if (targetEl.type === "circle") {
-          targetCtx.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
-          targetCtx.fill();
-          return;
-        }
-
-        const pathData = getShapePathData(targetEl, w, h);
-        if (pathData) targetCtx.fill(new Path2D(pathData));
-      };
-
-      const renderCompoundToCanvas = (compoundEl, bounds) => {
-        const offscreen = document.createElement("canvas");
-        offscreen.width = Math.max(
-          1,
-          Math.round(compoundEl.originalWidth || compoundEl.width || bounds.w),
-        );
-        offscreen.height = Math.max(
-          1,
-          Math.round(
-            compoundEl.originalHeight || compoundEl.height || bounds.h,
-          ),
-        );
-        const offCtx = offscreen.getContext("2d");
-        if (!offCtx) return;
-        const children = compoundEl.children || [];
-        const [firstChild, secondChild] = children;
-        const compoundFillStyle =
-          compoundEl.fillType === "gradient"
-            ? createGradient(
-                offCtx,
-                compoundEl,
-                offscreen.width,
-                offscreen.height,
-              )
-            : compoundEl.color;
-
-        const drawChild = (child) => {
-          if (!child) return;
-          const childW = safeNum(child.width, 100);
-          const childH = safeNum(child.height, 100);
-          offCtx.save();
-          offCtx.translate(
-            (child.localX || 0) + childW / 2,
-            (child.localY || 0) + childH / 2,
-          );
-          offCtx.rotate(safeNum(child.rotation, 0) * (Math.PI / 180));
-          offCtx.translate(-childW / 2, -childH / 2);
-          fillShape(offCtx, child, childW, childH, compoundFillStyle);
-          offCtx.restore();
-        };
-
-        if (compoundEl.operation === "union") {
-          drawChild(firstChild);
-          drawChild(secondChild);
-        } else if (compoundEl.operation === "subtract") {
-          drawChild(firstChild);
-          offCtx.globalCompositeOperation = "destination-out";
-          drawChild(secondChild);
-          offCtx.globalCompositeOperation = "source-over";
-        } else if (compoundEl.operation === "intersect") {
-          drawChild(firstChild);
-          offCtx.globalCompositeOperation = "destination-in";
-          drawChild(secondChild);
-          offCtx.globalCompositeOperation = "source-over";
-        } else if (compoundEl.operation === "exclude") {
-          drawChild(firstChild);
-          offCtx.globalCompositeOperation = "xor";
-          drawChild(secondChild);
-          offCtx.globalCompositeOperation = "source-over";
-        }
-
-        ctx.drawImage(offscreen, 0, 0, bounds.w, bounds.h);
-      };
-
-      if (backgroundRef.current?.color) {
-        ctx.fillStyle = backgroundRef.current.color;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
-
-      if (backgroundRef.current?.src) {
-        try {
-          const img = await loadImageForCanvas(backgroundRef.current.src);
-          const bgW = canvas.width;
-          const bgH = canvas.height;
-          const imgRatio = img.width / img.height;
-          const containerRatio = bgW / bgH;
-          let drawW, drawH, drawX, drawY;
-          if (img.width > 0 && img.height > 0) {
-            if (imgRatio > containerRatio) {
-              drawH = bgH;
-              drawW = drawH * imgRatio;
-              drawX = (bgW - drawW) / 2;
-              drawY = 0;
-            } else {
-              drawW = bgW;
-              drawH = drawW / imgRatio;
-              drawX = 0;
-              drawY = (bgH - drawH) / 2;
-            }
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(0, 0, bgW, bgH);
-            ctx.clip();
-            ctx.drawImage(img, drawX, drawY, drawW, drawH);
-            ctx.restore();
-          }
-        } catch (error) {
-          console.warn("Background image failed to load during export.", error);
-        }
-      }
-
-      const visibleElements = elementsRef.current.filter((el) => el.visible);
-      const scaleX = canvas.width / ARTBOARD_W;
-      const scaleY = canvas.height / ARTBOARD_H;
-
-      for (const el of visibleElements) {
-        const bounds = getVisualBounds(el);
-        ctx.save();
-        ctx.scale(scaleX, scaleY);
-        ctx.globalAlpha = Math.max(0, Math.min(1, safeNum(el.opacity, 1)));
-        ctx.translate(
-          safeNum(el.x, 0) + bounds.w / 2,
-          safeNum(el.y, 0) + bounds.h / 2,
-        );
-        ctx.rotate(safeNum(el.rotation, 0) * (Math.PI / 180));
-        ctx.translate(-bounds.w / 2, -bounds.h / 2);
-
-        const fillStyle =
-          el.fillType === "gradient"
-            ? createGradient(ctx, el, bounds.w, bounds.h)
-            : el.color;
-
-        if (el.type === "compound") {
-          renderCompoundToCanvas(el, bounds);
-        } else if (
-          [
-            "rect",
-            "circle",
-            "star",
-            "triangle",
-            "hexagon",
-            "heart",
-            "arrow",
-          ].includes(el.type)
-        ) {
-          strokeShape(ctx, el, bounds.w, bounds.h, "outside");
-          fillShape(ctx, el, bounds.w, bounds.h, fillStyle);
-          strokeShape(ctx, el, bounds.w, bounds.h, "inside-center");
-        } else if (el.type === "line") {
-          strokeShape(ctx, el, bounds.w, bounds.h, "outside");
-          if (!el.strokes || el.strokes.length === 0) {
-            ctx.strokeStyle = el.color;
-            ctx.lineWidth = Math.max(2, bounds.h);
-            ctx.lineCap = "round";
-            ctx.beginPath();
-            ctx.moveTo(0, Math.max(2, bounds.h / 2));
-            ctx.lineTo(bounds.w, Math.max(2, bounds.h / 2));
-            ctx.stroke();
-          }
-          strokeShape(ctx, el, bounds.w, bounds.h, "inside-center");
-        } else if (el.type === "text") {
-          const intrinsic = getIntrinsicBounds(el);
-          ctx.scale(safeNum(el.scaleX, 1), safeNum(el.scaleY, 1));
-          const fontName = el.fontFamily || "Inter";
-          const fontSize = safeNum(el.fontSize, 32);
-          ctx.font = `${el.fontStyle || "normal"} ${el.fontWeight || "bold"} ${fontSize}px "${fontName}", sans-serif`;
-
-          const drawUnderline = (x, y, lineWidth, scaleYValue = 1) => {
-            if (lineWidth <= 0) return;
-            const underlineHeight = Math.max(1, fontSize / 15);
-            const underlineY = y + fontSize * 1.02;
-            ctx.fillRect(
-              x,
-              underlineY,
-              lineWidth,
-              underlineHeight / Math.max(0.01, scaleYValue),
-            );
-          };
-
-          const drawText = (isStroke, stroke) => {
-            const rawContent = el.content || "";
-            const displayContent =
-              el.textTransform === "uppercase"
-                ? rawContent.toUpperCase()
-                : el.textTransform === "lowercase"
-                  ? rawContent.toLowerCase()
-                  : rawContent;
-            const lines = displayContent.split("\n");
-            const letterSpacing = safeNum(el.letterSpacing, 0);
-
-            if (!el.warpStyle || el.warpStyle === "none") {
-              ctx.textBaseline = "top";
-              lines.forEach((line, index) => {
-                const yPos = index * (fontSize * safeNum(el.lineHeight, 1.2));
-                const chars = [...line]; // Ganti split('') menjadi array spread agar emoji utuh
-                const totalLineWidth =
-                  chars.reduce(
-                    (sum, ch) =>
-                      sum + ctx.measureText(ch).width + letterSpacing,
-                    0,
-                  ) - (chars.length > 0 ? letterSpacing : 0);
-                let startX = 0;
-                if ((el.textAlign || "left") === "center")
-                  startX = (intrinsic.w - totalLineWidth) / 2;
-                else if (el.textAlign === "right")
-                  startX = intrinsic.w - totalLineWidth;
-
-                let curX = startX;
-                chars.forEach((ch) => {
-                  const charWidth = ctx.measureText(ch).width;
-                  if (isStroke) {
-                    ctx.strokeStyle = stroke.color;
-                    ctx.lineJoin = stroke.join || "round";
-                    ctx.lineWidth =
-                      stroke.width * (stroke.alignment === "center" ? 1 : 2);
-                    ctx.strokeText(ch, curX, yPos);
-                  } else {
-                    ctx.fillStyle = fillStyle;
-                    ctx.fillText(ch, curX, yPos);
-                  }
-                  curX += charWidth + letterSpacing;
-                });
-
-                if (
-                  !isStroke &&
-                  el.textDecoration === "underline" &&
-                  totalLineWidth > 0
-                ) {
-                  ctx.save();
-                  ctx.fillStyle = fillStyle;
-                  drawUnderline(
-                    startX,
-                    yPos,
-                    totalLineWidth,
-                    safeNum(el.scaleY, 1),
-                  );
-                  ctx.restore();
-                }
-              });
-            } else if (intrinsic.metrics) {
-              const metrics = intrinsic.metrics;
-              ctx.textAlign = "center";
-              ctx.textBaseline = "middle";
-              metrics.positions.forEach((position) => {
-                ctx.save();
-                ctx.translate(
-                  intrinsic.w / 2 + (position.dx - metrics.cx),
-                  intrinsic.h / 2 + (position.dy - metrics.cy),
-                );
-                ctx.rotate(position.angle);
-                ctx.scale(position.sX, position.sY);
-                const charDraw =
-                  el.textTransform === "uppercase"
-                    ? position.char.toUpperCase()
-                    : el.textTransform === "lowercase"
-                      ? position.char.toLowerCase()
-                      : position.char;
-                const charWidth = ctx.measureText(charDraw).width;
-                if (isStroke) {
-                  ctx.strokeStyle = stroke.color;
-                  ctx.lineJoin = stroke.join || "round";
-                  ctx.lineWidth =
-                    stroke.width * (stroke.alignment === "center" ? 1 : 2);
-                  ctx.strokeText(charDraw, 0, 0);
-                } else {
-                  ctx.fillStyle = fillStyle;
-                  ctx.fillText(charDraw, 0, 0);
-                  if (el.textDecoration === "underline" && charWidth > 0) {
-                    drawUnderline(
-                      -charWidth / 2,
-                      -fontSize / 2,
-                      charWidth,
-                      safeNum(position.sY, 1),
-                    );
-                  }
-                }
-                ctx.restore();
-              });
-            }
-          };
-
-          if (el.strokes)
-            [...el.strokes]
-              .reverse()
-              .forEach((stroke) => drawText(true, stroke));
-          drawText(false, null);
-        } else if (el.type === "image" && el.src) {
-          try {
-            const img = await loadImageForCanvas(el.src);
-            const imgRatio = img.width / img.height;
-            const containerRatio = bounds.w / bounds.h;
-            let drawW, drawH, drawX, drawY;
-            if (img.width > 0 && img.height > 0) {
-              if (imgRatio > containerRatio) {
-                drawW = bounds.w;
-                drawH = drawW / imgRatio;
-                drawX = 0;
-                drawY = (bounds.h - drawH) / 2;
-              } else {
-                drawH = bounds.h;
-                drawW = drawH * imgRatio;
-                drawX = (bounds.w - drawW) / 2;
-                drawY = 0;
-              }
-              ctx.drawImage(img, drawX, drawY, drawW, drawH);
-            }
-          } catch (error) {
-            console.warn(
-              `Element image ${el.id} failed to load during export.`,
-              error,
-            );
-          }
-        }
-
-        ctx.restore();
-      }
-
-      return canvas;
-    },
-    [ARTBOARD_H, ARTBOARD_W],
-  );
-
   const buildCartPreviewDataUrl = useCallback(async () => {
+    if (!fabricCanvasRef.current) return null;
     try {
-      const previewCanvas = await renderDesignToCanvas({
-        width: 408,
-        height: 131,
+      // Create a cloned version to not affect the live canvas state for scaling
+      // Or simply use toDataURL with multiplier to achieve 408x131 from 815x261 (approx 0.5x)
+      const multiplier = 408 / ARTBOARD_W;
+
+      // Temporarily deselect all for preview
+      fabricCanvasRef.current.discardActiveObject();
+      fabricCanvasRef.current.renderAll();
+
+      const dataUrl = fabricCanvasRef.current.toDataURL({
+        format: "jpeg",
+        quality: 0.72,
+        multiplier: multiplier,
       });
-      const dataUrl = previewCanvas.toDataURL("image/jpeg", 0.72);
+
       if (!dataUrl || dataUrl.length > CART_PREVIEW_MAX_DATA_URL_LENGTH)
         return null;
       return dataUrl;
@@ -4180,39 +3983,31 @@ const AppContent = () => {
       console.warn("Failed to build cart preview data URL.", error);
       return null;
     }
-  }, [renderDesignToCanvas]);
+  }, [ARTBOARD_W]);
 
   const exportCanvasToImage = async () => {
-    let canvas;
-    try {
-      canvas = await renderDesignToCanvas({
-        width: ARTBOARD_W,
-        height: ARTBOARD_H,
-      });
-    } catch (error) {
-      setStatusMsg(
-        error instanceof Error ? error.message : "PNG export failed.",
-      );
+    if (!fabricCanvasRef.current) {
+      setStatusMsg("Error: Editor canvas not ready.");
       return;
     }
-
-    let dataURL;
     try {
-      dataURL = canvas.toDataURL("image/png");
+      fabricCanvasRef.current.discardActiveObject();
+      fabricCanvasRef.current.renderAll();
+      const dataURL = fabricCanvasRef.current.toDataURL({
+        format: "png",
+        multiplier: 1,
+      });
+
+      const link = document.createElement("a");
+      const label = slugify(background?.label || "Untitled");
+      link.download = `tudiwrap-${label}.png`;
+      link.href = dataURL;
+      link.click();
+      setStatusMsg("PNG exported successfully!");
     } catch (error) {
       console.warn("Canvas export failed while serializing PNG.", error);
-      setStatusMsg(
-        "PNG export failed. One or more images blocked canvas serialization.",
-      );
-      return;
+      setStatusMsg("PNG export failed.");
     }
-
-    const link = document.createElement("a");
-    const label = slugify(background.label || "Untitled");
-    link.download = `tudiwrap-${label}.png`;
-    link.href = dataURL;
-    link.click();
-    setStatusMsg("PNG exported successfully!");
   };
 
   const addStroke = () => {
@@ -5080,20 +4875,11 @@ const AppContent = () => {
             }}
           >
             <div
-              id="main-canvas"
-              ref={canvasRef}
+              id="main-canvas-container"
               onPointerDown={(e) => {
-                if (e.target.id === "main-canvas" && !spaceDown.current) {
+                if ((e.target.id === "main-canvas-container" || e.target.classList.contains("upper-canvas")) && !spaceDown.current && selectedIds.length === 0) {
                   setSelectedIds([]);
                   setShowBackgroundMenu(false);
-                  setIsDragging(true);
-                  dragInfo.current = {
-                    ids: [],
-                    type: "marquee",
-                    startX: e.clientX,
-                    startY: e.clientY,
-                    initialVals: {},
-                  };
                   setShowShapeMenu(false);
                   setActiveColorEditId(null);
                   setIsBottomPanelOpen(false);
@@ -5105,818 +4891,14 @@ const AppContent = () => {
                 height: ARTBOARD_H,
                 backgroundColor: "transparent",
                 position: "relative",
-                overflow: "hidden",
+                overflow: "visible", // Changed from hidden so fabric corners don't clip
                 boxShadow: "0 40px 100px -20px rgba(0,0,0,0.7)",
               }}
             >
-              {/* BACKGROUND LAYER */}
-              <div
-                id={background.id}
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  top: 0,
-                  width: background.width || ARTBOARD_W,
-                  height: background.height || ARTBOARD_H,
-                  backgroundColor: background.color || "transparent",
-                  zIndex: -1,
-                  pointerEvents: "none",
-                }}
-              >
-                {background.src && (
-                  <img
-                    src={background.src}
-                    alt={background.label}
-                    className="w-full h-full object-cover pointer-events-none"
-                  />
-                )}
-              </div>
+              <canvas ref={canvasRef} id="fabric-canvas" />
 
-              {elements.map((el, i) => {
-                const bounds = getVisualBounds(el);
-                const isText = el.type === "text";
-                const intrinsic = isText ? getIntrinsicBounds(el) : null;
-                const isSelected = selectedIds.includes(el.id);
-                const fillStyle =
-                  el.fillType === "gradient"
-                    ? `linear-gradient(${safeNum(el.gradientAngle, 90)}deg, ${el.color}, ${el.gradientColor2})`
-                    : el.color;
-
-                return (
-                  <div
-                    key={el.id}
-                    id={`el-${el.id}`}
-                    onPointerDown={(e) => {
-                      e.stopPropagation();
-                      if (activeTool !== "direct-select")
-                        setActiveTool("select");
-                      setShowShapeMenu(false);
-                      let nS = [...selectedIds];
-                      if (e.shiftKey || mobileShift) {
-                        if (nS.includes(el.id))
-                          nS = nS.filter((id) => id !== el.id);
-                        else nS.push(el.id);
-                      } else if (!nS.includes(el.id)) {
-                        nS = [el.id];
-                      }
-                      setSelectedIds(nS);
-                      if (el.locked || activeTool === "direct-select") return;
-                      setIsDragging(true);
-                      const initials = {};
-                      elements.forEach((element) => {
-                        if (nS.includes(element.id)) {
-                          const b = getVisualBounds(element);
-                          initials[element.id] = {
-                            ...element,
-                            visualWidth: b.w,
-                            visualHeight: b.h,
-                          };
-                        }
-                      });
-                      dragInfo.current = {
-                        ids: nS,
-                        type: "drag",
-                        startX: e.clientX,
-                        startY: e.clientY,
-                        initialVals: initials,
-                      };
-                    }}
-                    style={{
-                      position: "absolute",
-                      left: safeNum(el.x, 0),
-                      top: safeNum(el.y, 0),
-                      width: safeNum(bounds.w, 100),
-                      height: safeNum(bounds.h, 100),
-                      backgroundColor:
-                        !isText &&
-                        ![
-                          "image",
-                          "compound",
-                          "star",
-                          "triangle",
-                          "rect",
-                          "circle",
-                          "hexagon",
-                          "heart",
-                          "arrow",
-                          "line",
-                        ].includes(el.type)
-                          ? fillStyle
-                          : "transparent",
-                      borderRadius: el.type === "circle" ? "50%" : "0",
-                      color: isText ? fillStyle : el.color,
-                      fontSize: safeNum(el.fontSize, 32),
-                      fontFamily: isText
-                        ? `"${el.fontFamily || "Inter"}", sans-serif`
-                        : "inherit",
-                      textAlign: isText ? el.textAlign || "left" : "left",
-                      whiteSpace: "pre",
-                      lineHeight: 1.2,
-                      zIndex: i,
-                      opacity: Math.max(0, Math.min(1, safeNum(el.opacity, 1))),
-                      transform: `rotate(${safeNum(el.rotation, 0)}deg)`,
-                      transformOrigin: "center center",
-                      cursor: el.locked ? "not-allowed" : "move",
-                      outline:
-                        isSelected && (selectedIdsCount > 1 || marquee)
-                          ? "2px solid #6366f1"
-                          : "none",
-                      touchAction: "none",
-                    }}
-                  >
-                    {isText && intrinsic && (
-                      <div
-                        style={{
-                          width: intrinsic.w,
-                          height: intrinsic.h,
-                          transform: `scale(${safeNum(el.scaleX, 1)}, ${safeNum(el.scaleY, 1)})`,
-                          transformOrigin: "top left",
-                          pointerEvents: "none",
-                          position: "relative",
-                        }}
-                      >
-                        <svg
-                          width="100%"
-                          height="100%"
-                          viewBox={`0 0 ${intrinsic.w} ${intrinsic.h}`}
-                          style={{ overflow: "visible" }}
-                        >
-                          <defs>
-                            {el.fillType === "gradient" && (
-                              <linearGradient
-                                id={`grad_text_${el.id}`}
-                                x1="0%"
-                                y1="0%"
-                                x2="100%"
-                                y2="0%"
-                                gradientTransform={`rotate(${safeNum(el.gradientAngle, 90)})`}
-                              >
-                                <stop offset="0%" stopColor={el.color} />
-                                <stop
-                                  offset="100%"
-                                  stopColor={el.gradientColor2}
-                                />
-                              </linearGradient>
-                            )}
-                          </defs>
-
-                          {!el.warpStyle || el.warpStyle === "none" ? (
-                            <g
-                              transform={`translate(${el.textAlign === "center" ? intrinsic.w / 2 : el.textAlign === "right" ? intrinsic.w : 0}, 0)`}
-                            >
-                              {[...(el.strokes || [])]
-                                .reverse()
-                                .concat([{ isFill: true }])
-                                .map((s, sIdx) => {
-                                  const isStroke = !s.isFill;
-                                  const strokeVal = s;
-                                  return (
-                                    <text
-                                      key={sIdx}
-                                      textAnchor={getSvgTextAnchor(
-                                        el.textAlign,
-                                      )}
-                                      dominantBaseline="hanging"
-                                      style={{
-                                        font: `${el.fontStyle || "normal"} ${el.fontWeight || "bold"} ${safeNum(el.fontSize, 32)}px "${el.fontFamily || "Inter"}", sans-serif`,
-                                        fill: isStroke
-                                          ? "none"
-                                          : getSvgFill(el, "text_"),
-                                        stroke: isStroke
-                                          ? strokeVal.color
-                                          : "none",
-                                        strokeWidth: isStroke
-                                          ? strokeVal.width *
-                                            (strokeVal.alignment === "center"
-                                              ? 1
-                                              : 2)
-                                          : 0,
-                                        strokeLinejoin: "round",
-                                        letterSpacing: safeNum(
-                                          el.letterSpacing,
-                                          0,
-                                        ),
-                                        textTransform:
-                                          el.textTransform || "none",
-                                        textDecoration:
-                                          el.textDecoration || "none",
-                                      }}
-                                    >
-                                      {(el.content || "")
-                                        .split("\n")
-                                        .map((line, lIdx) => (
-                                          <tspan
-                                            key={lIdx}
-                                            x="0"
-                                            dy={
-                                              lIdx === 0
-                                                ? 0
-                                                : safeNum(el.fontSize, 32) *
-                                                  safeNum(el.lineHeight, 1.2)
-                                            }
-                                          >
-                                            {line}
-                                          </tspan>
-                                        ))}
-                                    </text>
-                                  );
-                                })}
-                            </g>
-                          ) : (
-                            intrinsic.metrics && (
-                              <g
-                                transform={`translate(${intrinsic.w / 2 - intrinsic.metrics.cx}, ${intrinsic.h / 2 - intrinsic.metrics.cy})`}
-                              >
-                                {[...(el.strokes || [])]
-                                  .reverse()
-                                  .concat([{ isFill: true }])
-                                  .map((s, sIdx) => {
-                                    const isStroke = !s.isFill;
-                                    const strokeVal = s;
-                                    return (
-                                      <g key={sIdx}>
-                                        {intrinsic.metrics.positions.map(
-                                          (p, pIdx) => (
-                                            <text
-                                              key={pIdx}
-                                              textAnchor="middle"
-                                              dominantBaseline="middle"
-                                              transform={`translate(${p.dx}, ${p.dy}) rotate(${((p.angle || 0) * 180) / Math.PI}) scale(${p.sX}, ${p.sY})`}
-                                              style={{
-                                                font: `${el.fontStyle || "normal"} ${el.fontWeight || "bold"} ${safeNum(el.fontSize, 32)}px "${el.fontFamily || "Inter"}", sans-serif`,
-                                                fill: isStroke
-                                                  ? "none"
-                                                  : getSvgFill(el, "text_"),
-                                                stroke: isStroke
-                                                  ? strokeVal.color
-                                                  : "none",
-                                                strokeWidth: isStroke
-                                                  ? strokeVal.width *
-                                                    (strokeVal.alignment ===
-                                                    "center"
-                                                      ? 1
-                                                      : 2)
-                                                  : 0,
-                                                strokeLinejoin: "round",
-                                                textTransform:
-                                                  el.textTransform || "none",
-                                                textDecoration:
-                                                  el.textDecoration || "none",
-                                              }}
-                                            >
-                                              {p.char}
-                                            </text>
-                                          ),
-                                        )}
-                                      </g>
-                                    );
-                                  })}
-                              </g>
-                            )
-                          )}
-                        </svg>
-                      </div>
-                    )}
-
-                    {el.type === "image" && el.src && (
-                      <img
-                        src={el.src}
-                        alt="Element"
-                        draggable={false}
-                        className="w-full h-full object-contain pointer-events-none"
-                      />
-                    )}
-
-                    {[
-                      "star",
-                      "triangle",
-                      "compound",
-                      "rect",
-                      "circle",
-                      "hexagon",
-                      "heart",
-                      "arrow",
-                      "line",
-                    ].includes(el.type) &&
-                      (() => {
-                        const w = bounds.w,
-                          h = bounds.h;
-                        const shapePath = getShapePathData(el, w, h);
-
-                        const renderSvgStroke = (s, effectiveWidth) => {
-                          return (
-                            <g>
-                              {el.type === "rect" && !el.customPoints && (
-                                <rect
-                                  width={w}
-                                  height={h}
-                                  rx={el.borderRadius || 0}
-                                  ry={el.borderRadius || 0}
-                                  fill="none"
-                                  stroke={s.color}
-                                  strokeWidth={effectiveWidth}
-                                  strokeLinejoin={s.join || "round"}
-                                />
-                              )}
-                              {el.type === "circle" && (
-                                <ellipse
-                                  cx={w / 2}
-                                  cy={h / 2}
-                                  rx={w / 2}
-                                  ry={h / 2}
-                                  fill="none"
-                                  stroke={s.color}
-                                  strokeWidth={effectiveWidth}
-                                  strokeLinejoin={s.join || "round"}
-                                />
-                              )}
-                              {el.type === "line" && (
-                                <line
-                                  x1={0}
-                                  y1={h / 2}
-                                  x2={w}
-                                  y2={h / 2}
-                                  stroke={s.color}
-                                  strokeWidth={effectiveWidth}
-                                  strokeLinecap="round"
-                                />
-                              )}
-                              {shapePath && el.type !== "line" && (
-                                <path
-                                  d={shapePath}
-                                  fill="none"
-                                  stroke={s.color}
-                                  strokeWidth={effectiveWidth}
-                                  strokeLinejoin={s.join || "round"}
-                                />
-                              )}
-                            </g>
-                          );
-                        };
-
-                        const compoundChildren = Array.isArray(el.children)
-                          ? el.children
-                          : [];
-                        const compoundFirst = compoundChildren[0] || null;
-                        const compoundSecond = compoundChildren[1] || null;
-                        const compoundFill = getSvgFill(el);
-
-                        const renderSvgFill = () => {
-                          return (
-                            <g>
-                              {el.type === "rect" && !el.customPoints && (
-                                <rect
-                                  width={w}
-                                  height={h}
-                                  rx={el.borderRadius || 0}
-                                  ry={el.borderRadius || 0}
-                                  fill={getSvgFill(el)}
-                                />
-                              )}
-                              {el.type === "circle" && (
-                                <ellipse
-                                  cx={w / 2}
-                                  cy={h / 2}
-                                  rx={w / 2}
-                                  ry={h / 2}
-                                  fill={getSvgFill(el)}
-                                />
-                              )}
-                              {el.type === "line" && (
-                                <line
-                                  x1={0}
-                                  y1={Math.max(2, h / 2)}
-                                  x2={w}
-                                  y2={Math.max(2, h / 2)}
-                                  stroke={el.color}
-                                  strokeWidth={Math.max(2, h)}
-                                  strokeLinecap="round"
-                                />
-                              )}
-                              {shapePath && el.type !== "line" && (
-                                <path d={shapePath} fill={getSvgFill(el)} />
-                              )}
-                              {el.type === "compound" && (
-                                <g>
-                                  {el.operation === "union" && (
-                                    <>
-                                      {renderSvgShapeInner(
-                                        compoundFirst,
-                                        compoundFill,
-                                        "none",
-                                        0,
-                                      )}
-                                      {renderSvgShapeInner(
-                                        compoundSecond,
-                                        compoundFill,
-                                        "none",
-                                        0,
-                                      )}
-                                    </>
-                                  )}
-                                  {el.operation === "subtract" &&
-                                    compoundFirst && (
-                                      <g mask={`url(#mask_sub_${el.id})`}>
-                                        {renderSvgShapeInner(
-                                          compoundFirst,
-                                          compoundFill,
-                                          "none",
-                                          0,
-                                        )}
-                                      </g>
-                                    )}
-                                  {el.operation === "intersect" &&
-                                    compoundFirst &&
-                                    compoundSecond && (
-                                      <g mask={`url(#mask_int_${el.id})`}>
-                                        {renderSvgShapeInner(
-                                          compoundFirst,
-                                          compoundFill,
-                                          "none",
-                                          0,
-                                        )}
-                                      </g>
-                                    )}
-                                  {el.operation === "exclude" &&
-                                    compoundFirst &&
-                                    compoundSecond && (
-                                      <>
-                                        <g mask={`url(#mask_ex1_${el.id})`}>
-                                          {renderSvgShapeInner(
-                                            compoundFirst,
-                                            compoundFill,
-                                            "none",
-                                            0,
-                                          )}
-                                        </g>
-                                        <g mask={`url(#mask_ex2_${el.id})`}>
-                                          {renderSvgShapeInner(
-                                            compoundSecond,
-                                            compoundFill,
-                                            "none",
-                                            0,
-                                          )}
-                                        </g>
-                                      </>
-                                    )}
-                                </g>
-                              )}
-                            </g>
-                          );
-                        };
-
-                        const strokesArray = [...(el.strokes || [])].reverse();
-                        return (
-                          <svg
-                            width="100%"
-                            height="100%"
-                            preserveAspectRatio="none"
-                            viewBox={`0 0 ${el.type === "compound" ? el.originalWidth : w} ${el.type === "compound" ? el.originalHeight : h}`}
-                            style={{
-                              pointerEvents: "none",
-                              overflow: "visible",
-                            }}
-                          >
-                            <defs>
-                              {el.fillType === "gradient" && (
-                                <linearGradient
-                                  id={`grad_${el.id}`}
-                                  x1="0%"
-                                  y1="0%"
-                                  x2="100%"
-                                  y2="0%"
-                                  gradientTransform={`rotate(${safeNum(el.gradientAngle, 90)})`}
-                                >
-                                  {" "}
-                                  <stop offset="0%" stopColor={el.color} />{" "}
-                                  <stop
-                                    offset="100%"
-                                    stopColor={el.gradientColor2}
-                                  />{" "}
-                                </linearGradient>
-                              )}
-                              {el.type === "compound" &&
-                                el.operation === "subtract" &&
-                                compoundSecond && (
-                                  <mask id={`mask_sub_${el.id}`}>
-                                    <rect
-                                      x="-10000"
-                                      y="-10000"
-                                      width="20000"
-                                      height="20000"
-                                      fill="white"
-                                    />
-                                    {renderSvgShapeInner(
-                                      compoundSecond,
-                                      "black",
-                                      "none",
-                                      0,
-                                    )}
-                                  </mask>
-                                )}
-                              {el.type === "compound" &&
-                                el.operation === "intersect" &&
-                                compoundSecond && (
-                                  <mask id={`mask_int_${el.id}`}>
-                                    <rect
-                                      x="-10000"
-                                      y="-10000"
-                                      width="20000"
-                                      height="20000"
-                                      fill="black"
-                                    />
-                                    {renderSvgShapeInner(
-                                      compoundSecond,
-                                      "white",
-                                      "none",
-                                      0,
-                                    )}
-                                  </mask>
-                                )}
-                              {el.type === "compound" &&
-                                el.operation === "exclude" &&
-                                compoundFirst &&
-                                compoundSecond && (
-                                  <>
-                                    <mask id={`mask_ex1_${el.id}`}>
-                                      <rect
-                                        x="-10000"
-                                        y="-10000"
-                                        width="20000"
-                                        height="20000"
-                                        fill="white"
-                                      />
-                                      {renderSvgShapeInner(
-                                        compoundSecond,
-                                        "black",
-                                        "none",
-                                        0,
-                                      )}
-                                    </mask>
-                                    <mask id={`mask_ex2_${el.id}`}>
-                                      <rect
-                                        x="-10000"
-                                        y="-10000"
-                                        width="20000"
-                                        height="20000"
-                                        fill="white"
-                                      />
-                                      {renderSvgShapeInner(
-                                        compoundFirst,
-                                        "black",
-                                        "none",
-                                        0,
-                                      )}
-                                    </mask>
-                                  </>
-                                )}
-                              <clipPath id={`clip_inside_${el.id}`}>
-                                {el.type === "rect" && !el.customPoints ? (
-                                  <rect
-                                    width={w}
-                                    height={h}
-                                    rx={el.borderRadius || 0}
-                                    ry={el.borderRadius || 0}
-                                  />
-                                ) : el.type === "circle" ? (
-                                  <ellipse
-                                    cx={w / 2}
-                                    cy={h / 2}
-                                    rx={w / 2}
-                                    ry={h / 2}
-                                  />
-                                ) : shapePath ? (
-                                  <path d={shapePath} />
-                                ) : null}
-                              </clipPath>
-                            </defs>
-                            <g>
-                              {/* 1. Outside Strokes (before fill) */}
-                              {strokesArray.map(
-                                (s, idx) =>
-                                  s.alignment === "outside" && (
-                                    <g key={`out-${idx}`}>
-                                      {renderSvgStroke(s, s.width * 2)}
-                                    </g>
-                                  ),
-                              )}
-
-                              {/* 2. Background Fill */}
-                              {renderSvgFill()}
-
-                              {/* 3. Center Strokes (after fill) */}
-                              {strokesArray.map(
-                                (s, idx) =>
-                                  (!s.alignment ||
-                                    s.alignment === "center") && (
-                                    <g key={`cen-${idx}`}>
-                                      {renderSvgStroke(s, s.width)}
-                                    </g>
-                                  ),
-                              )}
-
-                              {/* 4. Inside Strokes (after fill, clipped) */}
-                              {strokesArray.map(
-                                (s, idx) =>
-                                  s.alignment === "inside" && (
-                                    <g
-                                      key={`ins-${idx}`}
-                                      clipPath={`url(#clip_inside_${el.id})`}
-                                    >
-                                      {renderSvgStroke(s, s.width * 2)}
-                                    </g>
-                                  ),
-                              )}
-                            </g>
-                          </svg>
-                        );
-                      })()}
-                    {isSelected &&
-                      activeTool === "select" &&
-                      selectedIdsCount === 1 &&
-                      !el.locked && (
-                        <div className="absolute inset-0 border border-[#22c55e] pointer-events-none z-[200]">
-                          {transformHandles.map((h) => (
-                            <div
-                              key={h.dir}
-                              onPointerDown={(e) => {
-                                e.stopPropagation();
-                                setIsDragging(true);
-                                dragInfo.current = {
-                                  ids: [el.id],
-                                  type: `resize-${h.dir}`,
-                                  startX: e.clientX,
-                                  startY: e.clientY,
-                                  initialVals: {
-                                    [el.id]: {
-                                      ...el,
-                                      visualWidth: bounds.w,
-                                      visualHeight: bounds.h,
-                                    },
-                                  },
-                                };
-                              }}
-                              className="absolute w-3 h-3 bg-white border border-[#22c55e] pointer-events-auto shadow-md"
-                              style={{
-                                top: h.top,
-                                left: h.left,
-                                transform: "translate(-50%, -50%)",
-                                cursor: h.cursor,
-                              }}
-                            />
-                          ))}
-                          <div
-                            className="absolute top-1/2 left-[100%] w-6 h-[1px] bg-[#22c55e]"
-                            style={{ transform: "translateY(-50%)" }}
-                          />
-                          <div
-                            onPointerDown={(e) => {
-                              e.stopPropagation();
-                              setIsDragging(true);
-                              const rect = document
-                                .getElementById(`el-${el.id}`)
-                                .getBoundingClientRect();
-                              dragInfo.current = {
-                                ids: [el.id],
-                                type: "rotate",
-                                initialVals: {
-                                  [el.id]: {
-                                    centerX: rect.left + rect.width / 2,
-                                    centerY: rect.top + rect.height / 2,
-                                    rotation: el.rotation || 0,
-                                  },
-                                },
-                              };
-                            }}
-                            className="absolute w-4 h-4 bg-white border border-[#22c55e] rounded-full pointer-events-auto cursor-crosshair shadow-md"
-                            style={{
-                              top: "50%",
-                              left: "calc(100% + 24px)",
-                              transform: "translate(-50%, -50%)",
-                            }}
-                          />
-                        </div>
-                      )}
-                    {/* Direct Selection Handles (Anchor points and Live Corners) */}
-                    {isSelected &&
-                      activeTool === "direct-select" &&
-                      selectedIdsCount === 1 &&
-                      !el.locked &&
-                      RELEASE_DIRECT_SELECT_TYPES.includes(el.type) &&
-                      (() => {
-                        const w = bounds.w,
-                          h = bounds.h;
-                        const pts =
-                          el.customPoints || getDefaultPoints(el, bounds);
-                        return (
-                          <div className="absolute inset-0 pointer-events-none z-[200]">
-                            {/* Anchor Points (Red Squares) */}
-                            {pts.map((p, idx) => (
-                              <div
-                                key={idx}
-                                onPointerDown={(e) => {
-                                  e.stopPropagation();
-                                  setIsDragging(true);
-                                  dragInfo.current = {
-                                    ids: [el.id],
-                                    type: "anchor",
-                                    index: idx,
-                                    startX: e.clientX,
-                                    startY: e.clientY,
-                                    initialVals: { [el.id]: { ...el } },
-                                  };
-                                }}
-                                className="absolute pointer-events-auto group"
-                                style={{
-                                  left: p.x,
-                                  top: p.y,
-                                  transform: "translate(-50%, -50%)",
-                                }}
-                              >
-                                <div className="w-8 h-8 flex items-center justify-center cursor-move">
-                                  <div className="w-2 h-2 bg-red-500 border border-white shadow-sm" />
-                                </div>
-                                <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 text-[8px] text-white px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                  anchor
-                                </span>
-                              </div>
-                            ))}
-                            {/* Live Corners (Circle Handles) - Only for rect and if not distorted/using customPoints */}
-                            {el.type === "rect" &&
-                              !el.customPoints &&
-                              (() => {
-                                // Bug Fix: Bug Live Corners Melenceng
-                                // Posisikan titik radius persis di titik awal lengkungan, bukan di offset 15% statis
-                                const r = Math.max(
-                                  8,
-                                  Math.min(
-                                    el.borderRadius || 0,
-                                    Math.min(w, h) / 2,
-                                  ),
-                                );
-                                const corners = [
-                                  { t: r, l: r, cursor: "nwse-resize" },
-                                  { t: r, l: w - r, cursor: "nesw-resize" },
-                                  { t: h - r, l: w - r, cursor: "nwse-resize" },
-                                  { t: h - r, l: r, cursor: "nesw-resize" },
-                                ];
-                                return corners.map((pos, idx) => (
-                                  <div
-                                    key={`rad-${idx}`}
-                                    onPointerDown={(e) => {
-                                      e.stopPropagation();
-                                      setIsDragging(true);
-                                      dragInfo.current = {
-                                        ids: [el.id],
-                                        type: "radius",
-                                        index: idx,
-                                        startX: e.clientX,
-                                        startY: e.clientY,
-                                        initialVals: { [el.id]: { ...el } },
-                                      };
-                                    }}
-                                    className="absolute pointer-events-auto"
-                                    style={{
-                                      top: `${pos.t}px`,
-                                      left: `${pos.l}px`,
-                                      transform: "translate(-50%, -50%)",
-                                    }}
-                                  >
-                                    <div
-                                      className="w-10 h-10 flex items-center justify-center"
-                                      style={{ cursor: pos.cursor }}
-                                    >
-                                      <div className="w-3 h-3 bg-white border-2 border-red-500 rounded-full shadow-md hover:scale-125 transition-transform" />
-                                    </div>
-                                  </div>
-                                ));
-                              })()}
-                          </div>
-                        );
-                      })()}
-                    {el.locked && (
-                      <div className="absolute -top-6 left-0 bg-slate-800 text-[8px] text-white px-1.5 py-0.5 rounded flex items-center gap-1 uppercase font-bold tracking-widest">
-                        <Lock size={8} /> LOCKED
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              {marquee && (
-                <div
-                  style={{
-                    position: "absolute",
-                    left: marquee.x,
-                    top: marquee.y,
-                    width: marquee.w,
-                    height: marquee.h,
-                    border: "1.5px solid #6366f1",
-                    backgroundColor: "rgba(99, 102, 241, 0.1)",
-                    pointerEvents: "none",
-                    zIndex: 1000,
-                  }}
-                />
-              )}
+              {/* DOM Rendering temporarily disabled to favor Fabric.js */}
+              {/* DOM Rendering has been removed to favor Fabric.js */}
 
               <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-40 z-[999]">
                 <div className="absolute top-1/2 left-0 w-full h-[0.5px] bg-indigo-500" />{" "}
