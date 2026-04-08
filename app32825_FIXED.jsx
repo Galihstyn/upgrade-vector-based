@@ -523,10 +523,19 @@ const getCustomPointBounds = (
     };
   }
 
-  const minX = Math.min(...points.map((point) => point.x));
-  const maxX = Math.max(...points.map((point) => point.x));
-  const minY = Math.min(...points.map((point) => point.y));
-  const maxY = Math.max(...points.map((point) => point.y));
+  let minX = points[0].x;
+  let maxX = points[0].x;
+  let minY = points[0].y;
+  let maxY = points[0].y;
+
+  for (let i = 1; i < points.length; i++) {
+    const p = points[i];
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
+  }
+
   const width = Math.max(10, maxX - minX);
   const height = Math.max(10, maxY - minY);
 
@@ -636,20 +645,27 @@ const getElementBounds = (el) => {
     );
     const cx = safeNum(el.x, 0) + pointBounds.centerX;
     const cy = safeNum(el.y, 0) + pointBounds.centerY;
-    const transformedPoints = pointBounds.points.map((point) => {
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+    for (let i = 0; i < pointBounds.points.length; i++) {
+      const point = pointBounds.points[i];
       const relX = point.x - pointBounds.centerX;
       const relY = point.y - pointBounds.centerY;
-      return {
-        x: cx + relX * Math.cos(rad) - relY * Math.sin(rad),
-        y: cy + relX * Math.sin(rad) + relY * Math.cos(rad),
-      };
-    });
+      const x = cx + relX * Math.cos(rad) - relY * Math.sin(rad);
+      const y = cy + relX * Math.sin(rad) + relY * Math.cos(rad);
+
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
 
     return {
-      minX: Math.min(...transformedPoints.map((point) => point.x)),
-      maxX: Math.max(...transformedPoints.map((point) => point.x)),
-      minY: Math.min(...transformedPoints.map((point) => point.y)),
-      maxY: Math.max(...transformedPoints.map((point) => point.y)),
+      minX,
+      maxX,
+      minY,
+      maxY,
     };
   }
 
@@ -658,20 +674,31 @@ const getElementBounds = (el) => {
   const h = bounds.h;
   const cx = safeNum(el.x, 0) + w / 2;
   const cy = safeNum(el.y, 0) + h / 2;
-  const corners = [
+  const rawCorners = [
     { x: -w / 2, y: -h / 2 },
     { x: w / 2, y: -h / 2 },
     { x: w / 2, y: h / 2 },
     { x: -w / 2, y: h / 2 },
-  ].map((point) => ({
-    x: cx + point.x * Math.cos(rad) - point.y * Math.sin(rad),
-    y: cy + point.x * Math.sin(rad) + point.y * Math.cos(rad),
-  }));
+  ];
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+  for (let i = 0; i < rawCorners.length; i++) {
+    const point = rawCorners[i];
+    const x = cx + point.x * Math.cos(rad) - point.y * Math.sin(rad);
+    const y = cy + point.x * Math.sin(rad) + point.y * Math.cos(rad);
+
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+
   return {
-    minX: Math.min(...corners.map((c) => c.x)),
-    maxX: Math.max(...corners.map((c) => c.x)),
-    minY: Math.min(...corners.map((c) => c.y)),
-    maxY: Math.max(...corners.map((c) => c.y)),
+    minX,
+    maxX,
+    minY,
+    maxY,
   };
 };
 
@@ -2361,20 +2388,20 @@ const AppContent = () => {
     GUIDE2_W = 216.5,
     GUIDE2_H = 180;
 
-  const themeBootstrapRef = useRef(getThemeBootstrap());
-  const bootBackgroundRef = useRef(
-    themeBootstrapRef.current?.background
-      ? safeClone({ ...themeBootstrapRef.current.background, locked: true })
-      : null,
-  );
-  const editorContextSignatureRef = useRef(
-    getThemeBootstrapContextSignature(themeBootstrapRef.current),
-  );
-  const projectStorageKeyRef = useRef(
-    buildProjectStorageKey(editorContextSignatureRef.current),
-  );
+  const themeBootstrapRef = useRef(null);
+  const bootBackgroundRef = useRef(null);
+  const editorContextSignatureRef = useRef(null);
+  const projectStorageKeyRef = useRef(null);
   const initialProjectRef = useRef(null);
-  if (initialProjectRef.current === null) {
+
+  if (themeBootstrapRef.current === null) {
+    themeBootstrapRef.current = getThemeBootstrap();
+    bootBackgroundRef.current = themeBootstrapRef.current?.background
+      ? safeClone({ ...themeBootstrapRef.current.background, locked: true })
+      : null;
+    editorContextSignatureRef.current = getThemeBootstrapContextSignature(themeBootstrapRef.current);
+    projectStorageKeyRef.current = buildProjectStorageKey(editorContextSignatureRef.current);
+
     const loadedProject = loadValidatedProjectData(
       projectStorageKeyRef.current,
       ARTBOARD_W,
