@@ -2315,14 +2315,12 @@ const ColorEditorArea = ({
 class AppErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, message: "" };
+    this.state = { hasError: false };
   }
 
   static getDerivedStateFromError(error) {
     return {
       hasError: true,
-      message:
-        error instanceof Error ? error.message : "Editor failed to render.",
     };
   }
 
@@ -2342,7 +2340,7 @@ class AppErrorBoundary extends React.Component {
               The custom design editor failed to render.
             </div>
             <div className="text-xs text-slate-300 leading-5">
-              {this.state.message || "Unknown render error."}
+              An unexpected error occurred. Please try refreshing the page.
             </div>
           </div>
         </div>
