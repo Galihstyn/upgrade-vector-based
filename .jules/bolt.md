@@ -1,0 +1,3 @@
+## 2024-03-24 - [Avoid `useRef` initialization bottlenecks in React hot paths]
+**Learning:** `useRef(expensiveFunction())` evaluates `expensiveFunction()` on *every single render*, even though `useRef` only uses the initial value once. In a hot path like a canvas editor where rendering happens on every pan/drag event, this causes significant performance degradation, especially if the function queries the DOM or does deep cloning.
+**Action:** Use lazy initialization pattern (`if (ref.current === null) { ref.current = expensiveFunction(); }`) instead of passing the function call directly as an argument to `useRef()`.
