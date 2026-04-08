@@ -36,6 +36,7 @@ import {
   Monitor,
   AlertTriangle,
   ShoppingCart,
+  Loader2,
   Hexagon,
   Heart,
   ArrowRight,
@@ -4415,7 +4416,8 @@ const AppContent = () => {
           onClick={undo}
           disabled={historyIndex === 0}
           title="Undo"
-          className="w-8 h-8 flex items-center justify-center hover:bg-slate-700 rounded-full disabled:opacity-20 text-indigo-400 transition-all"
+          aria-label="Undo"
+          className="w-8 h-8 flex items-center justify-center hover:bg-slate-700 rounded-full disabled:opacity-20 text-indigo-400 transition-all focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
         >
           <Undo2 size={16} />
         </button>
@@ -4423,7 +4425,8 @@ const AppContent = () => {
           onClick={redo}
           disabled={historyIndex === history.length - 1}
           title="Redo"
-          className="w-8 h-8 flex items-center justify-center hover:bg-slate-700 rounded-full disabled:opacity-20 text-indigo-400 transition-all"
+          aria-label="Redo"
+          className="w-8 h-8 flex items-center justify-center hover:bg-slate-700 rounded-full disabled:opacity-20 text-indigo-400 transition-all focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
         >
           <Redo2 size={16} />
         </button>
@@ -4433,7 +4436,8 @@ const AppContent = () => {
         <button
           onClick={() => setZoom((z) => Math.min(4, z + 0.1))}
           title="Zoom In"
-          className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-all"
+          aria-label="Zoom In"
+          className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-all focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
         >
           <ZoomIn size={16} />
         </button>
@@ -4443,7 +4447,8 @@ const AppContent = () => {
         <button
           onClick={() => setZoom((z) => Math.max(0.1, z - 0.1))}
           title="Zoom Out"
-          className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-all"
+          aria-label="Zoom Out"
+          className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-all focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
         >
           <ZoomOut size={16} />
         </button>
@@ -4745,16 +4750,13 @@ const AppContent = () => {
                   handleAddToCart();
                 }}
                 disabled={submitStatus === "submitting"}
-                className={`${submitStatus === "success" ? "bg-green-600 hover:bg-green-500" : submitStatus === "error" ? "bg-red-600 hover:bg-red-500" : "bg-indigo-600 hover:bg-indigo-500"} text-white px-2 py-1.5 md:px-3 md:py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 md:gap-2 transition-all shadow-xl shadow-indigo-600/10 disabled:opacity-75 shrink-0 whitespace-nowrap`}
+                className={`${submitStatus === "success" ? "bg-green-600 hover:bg-green-500" : submitStatus === "error" ? "bg-red-600 hover:bg-red-500" : "bg-indigo-600 hover:bg-indigo-500"} text-white px-2 py-1.5 md:px-3 md:py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 md:gap-2 transition-all shadow-xl shadow-indigo-600/10 disabled:opacity-75 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none`}
               >
-                <ShoppingCart
-                  size={14}
-                  className={
-                    submitStatus === "submitting"
-                      ? "animate-pulse opacity-50"
-                      : ""
-                  }
-                />
+                {submitStatus === "submitting" ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <ShoppingCart size={14} />
+                )}
                 <span>
                   {submitStatus === "submitting"
                     ? "..."
