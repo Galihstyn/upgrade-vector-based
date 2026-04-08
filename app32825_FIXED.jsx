@@ -4059,7 +4059,7 @@ const AppContent = () => {
 
   const didMove = useRef(false); // Bug 8 fix: track real movement to avoid saving on click-only
 
-  const handleUp = () => {
+  const handleUp = useCallback(() => {
     if (panStart.current) {
       panStart.current = null;
     }
@@ -4073,7 +4073,7 @@ const AppContent = () => {
       didMove.current = false;
       dragInfo.current.type = null;
     }
-  };
+  }, [isDragging, setIsDragging, setMarquee, saveToHistory]);
 
   const clearDraft = () => {
     const defaultBg = bootBackgroundRef.current
@@ -4120,209 +4120,224 @@ const AppContent = () => {
   const handleMoveRef = useRef(null);
   const handleUpRef = useRef(null);
 
-  const handleMove = (e) => {
-    // Pan the viewport when Space is held
-    if (panStart.current || dragInfo.current?.type === "pan") {
-      const startP = panStart.current || { x: e.clientX, y: e.clientY };
-      const dx = e.clientX - startP.x;
-      const dy = e.clientY - startP.y;
-      setPanOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
-      panStart.current = { x: e.clientX, y: e.clientY };
-      return;
-    }
-    if (!isDragging || dragInfo.current.type === null) return;
-    const { ids, type, startX, startY, initialVals } = dragInfo.current;
-    const dx = (e.clientX - startX) / zoom;
-    const dy = (e.clientY - startY) / zoom;
-    if (type === "marquee") {
-      const canvasRect = canvasRef.current.getBoundingClientRect();
-      const curX = (e.clientX - canvasRect.left) / zoom;
-      const curY = (e.clientY - canvasRect.top) / zoom;
-      const sX = (startX - canvasRect.left) / zoom;
-      const sY = (startY - canvasRect.top) / zoom;
-      const mX = Math.min(sX, curX);
-      const mY = Math.min(sY, curY);
-      const mW = Math.abs(curX - sX);
-      const mH = Math.abs(curY - sY);
-      setMarquee({ x: mX, y: mY, w: mW, h: mH });
-      const newlySelected = elements
-        .filter((el) => {
-          const b = getElementBounds(el);
-          return !(
-            b.minX > mX + mW ||
-            b.maxX < mX ||
-            b.minY > mY + mH ||
-            b.maxY < mY
-          );
-        })
-        .map((el) => el.id);
-      setSelectedIds(newlySelected);
-      return;
-    }
-    didMove.current = true; // Bug 8: mark that a real move occurred
-    setElements((prev) => {
-      const nextElements = prev.map((el) => {
-        if (!ids.includes(el.id) || el.locked) return el;
-        const initialVal = initialVals[el.id];
-        if (type === "drag")
-          return {
-            ...el,
-            x: safeNum(initialVal.x + dx, el.x),
-            y: safeNum(initialVal.y + dy, el.y),
-          };
-        if (type.startsWith("resize-")) {
-          const dir = type.split("-")[1];
-          const bounds = getVisualBounds(initialVal);
-          const initW = Math.max(1, bounds.w);
-          const initH = Math.max(1, bounds.h);
-          const initX = safeNum(initialVal.x, 0);
-          const initY = safeNum(initialVal.y, 0);
-          const rad = safeNum(initialVal.rotation, 0) * (Math.PI / 180);
-          const rDx = dx * Math.cos(-rad) - dy * Math.sin(-rad);
-          const rDy = dx * Math.sin(-rad) + dy * Math.cos(-rad);
-          let dw = 0,
-            dh = 0;
-          if (dir.includes("e")) dw = rDx;
-          if (dir.includes("w")) dw = -rDx;
-          if (dir.includes("s")) dh = rDy;
-          if (dir.includes("n")) dh = -rDy;
-          if ((e.shiftKey || mobileShift) && dir.length === 2) {
-            const ratio = initH / initW;
-            if (Math.abs(dw) > Math.abs(dh))
-              dh = Math.abs(dw * ratio) * Math.sign(dh || 1);
-            else dw = Math.abs(dh / ratio) * Math.sign(dw || 1);
-          }
-          let newW = Math.max(10, initW + dw);
-          let newH = Math.max(10, initH + dh);
-          const actualDw = newW - initW;
-          const actualDh = newH - initH;
-          let fX = 0,
-            fY = 0;
-          if (dir.includes("e")) fX = 1;
-          if (dir.includes("w")) fX = -1;
-          if (dir.includes("s")) fY = 1;
-          if (dir.includes("n")) fY = -1;
-          const localCx = (actualDw / 2) * fX;
-          const localCy = (actualDh / 2) * fY;
-          const dCx = localCx * Math.cos(rad) - localCy * Math.sin(rad);
-          const dCy = localCx * Math.sin(rad) + localCy * Math.cos(rad);
-          const newX = safeNum(initX + dCx - actualDw / 2, el.x);
-          const newY = safeNum(initY + dCy - actualDh / 2, el.y);
-          if (el.type === "text") {
-            const intrinsic = getIntrinsicBounds(initialVal);
+  const handleMove = useCallback(
+    (e) => {
+      // Pan the viewport when Space is held
+      if (panStart.current || dragInfo.current?.type === "pan") {
+        const startP = panStart.current || { x: e.clientX, y: e.clientY };
+        const dx = e.clientX - startP.x;
+        const dy = e.clientY - startP.y;
+        setPanOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+        panStart.current = { x: e.clientX, y: e.clientY };
+        return;
+      }
+      if (!isDragging || dragInfo.current.type === null) return;
+      const { ids, type, startX, startY, initialVals } = dragInfo.current;
+      const dx = (e.clientX - startX) / zoom;
+      const dy = (e.clientY - startY) / zoom;
+      if (type === "marquee") {
+        const canvasRect = canvasRef.current.getBoundingClientRect();
+        const curX = (e.clientX - canvasRect.left) / zoom;
+        const curY = (e.clientY - canvasRect.top) / zoom;
+        const sX = (startX - canvasRect.left) / zoom;
+        const sY = (startY - canvasRect.top) / zoom;
+        const mX = Math.min(sX, curX);
+        const mY = Math.min(sY, curY);
+        const mW = Math.abs(curX - sX);
+        const mH = Math.abs(curY - sY);
+        setMarquee({ x: mX, y: mY, w: mW, h: mH });
+        const newlySelected = elements
+          .filter((el) => {
+            const b = getElementBounds(el);
+            return !(
+              b.minX > mX + mW ||
+              b.maxX < mX ||
+              b.minY > mY + mH ||
+              b.maxY < mY
+            );
+          })
+          .map((el) => el.id);
+        setSelectedIds(newlySelected);
+        return;
+      }
+      didMove.current = true; // Bug 8: mark that a real move occurred
+      setElements((prev) => {
+        const nextElements = prev.map((el) => {
+          if (!ids.includes(el.id) || el.locked) return el;
+          const initialVal = initialVals[el.id];
+          if (type === "drag")
+            return {
+              ...el,
+              x: safeNum(initialVal.x + dx, el.x),
+              y: safeNum(initialVal.y + dy, el.y),
+            };
+          if (type.startsWith("resize-")) {
+            const dir = type.split("-")[1];
+            const bounds = getVisualBounds(initialVal);
+            const initW = Math.max(1, bounds.w);
+            const initH = Math.max(1, bounds.h);
+            const initX = safeNum(initialVal.x, 0);
+            const initY = safeNum(initialVal.y, 0);
+            const rad = safeNum(initialVal.rotation, 0) * (Math.PI / 180);
+            const rDx = dx * Math.cos(-rad) - dy * Math.sin(-rad);
+            const rDy = dx * Math.sin(-rad) + dy * Math.cos(-rad);
+            let dw = 0,
+              dh = 0;
+            if (dir.includes("e")) dw = rDx;
+            if (dir.includes("w")) dw = -rDx;
+            if (dir.includes("s")) dh = rDy;
+            if (dir.includes("n")) dh = -rDy;
+            if ((e.shiftKey || mobileShift) && dir.length === 2) {
+              const ratio = initH / initW;
+              if (Math.abs(dw) > Math.abs(dh))
+                dh = Math.abs(dw * ratio) * Math.sign(dh || 1);
+              else dw = Math.abs(dh / ratio) * Math.sign(dw || 1);
+            }
+            let newW = Math.max(10, initW + dw);
+            let newH = Math.max(10, initH + dh);
+            const actualDw = newW - initW;
+            const actualDh = newH - initH;
+            let fX = 0,
+              fY = 0;
+            if (dir.includes("e")) fX = 1;
+            if (dir.includes("w")) fX = -1;
+            if (dir.includes("s")) fY = 1;
+            if (dir.includes("n")) fY = -1;
+            const localCx = (actualDw / 2) * fX;
+            const localCy = (actualDh / 2) * fY;
+            const dCx = localCx * Math.cos(rad) - localCy * Math.sin(rad);
+            const dCy = localCx * Math.sin(rad) + localCy * Math.cos(rad);
+            const newX = safeNum(initX + dCx - actualDw / 2, el.x);
+            const newY = safeNum(initY + dCy - actualDh / 2, el.y);
+            if (el.type === "text") {
+              const intrinsic = getIntrinsicBounds(initialVal);
+              return {
+                ...el,
+                x: newX,
+                y: newY,
+                scaleX: safeNum(newW / Math.max(1, intrinsic.w), 1),
+                scaleY: safeNum(newH / Math.max(1, intrinsic.h), 1),
+              };
+            }
+            if (
+              Array.isArray(initialVal.customPoints) &&
+              initialVal.customPoints.length > 1
+            ) {
+              const pointBounds = getCustomPointBounds(
+                initialVal.customPoints,
+                initW,
+                initH,
+              );
+              const scaleX = Math.max(
+                0.01,
+                newW / Math.max(1, pointBounds.width),
+              );
+              const scaleY = Math.max(
+                0.01,
+                newH / Math.max(1, pointBounds.height),
+              );
+              const scaledPoints = pointBounds.points.map((point) => ({
+                x: (point.x - pointBounds.minX) * scaleX,
+                y: (point.y - pointBounds.minY) * scaleY,
+              }));
+              return normalizeCustomPointElement(
+                { ...el, x: newX, y: newY, width: newW, height: newH },
+                scaledPoints,
+              );
+            }
             return {
               ...el,
               x: newX,
               y: newY,
-              scaleX: safeNum(newW / Math.max(1, intrinsic.w), 1),
-              scaleY: safeNum(newH / Math.max(1, intrinsic.h), 1),
+              width: safeNum(newW, el.width),
+              height: safeNum(newH, el.height),
             };
           }
-          if (
-            Array.isArray(initialVal.customPoints) &&
-            initialVal.customPoints.length > 1
-          ) {
-            const pointBounds = getCustomPointBounds(
-              initialVal.customPoints,
-              initW,
-              initH,
-            );
-            const scaleX = Math.max(
-              0.01,
-              newW / Math.max(1, pointBounds.width),
-            );
-            const scaleY = Math.max(
-              0.01,
-              newH / Math.max(1, pointBounds.height),
-            );
-            const scaledPoints = pointBounds.points.map((point) => ({
-              x: (point.x - pointBounds.minX) * scaleX,
-              y: (point.y - pointBounds.minY) * scaleY,
-            }));
+          if (type === "rotate") {
+            const rotateDx = e.clientX - safeNum(initialVal.centerX, e.clientX);
+            const rotateDy = e.clientY - safeNum(initialVal.centerY, e.clientY);
+            let angle = Math.atan2(rotateDy, rotateDx) * (180 / Math.PI);
+            let newRotation = safeNum(angle, 0);
+            if (
+              Math.abs(newRotation % 45) < 5 ||
+              Math.abs(newRotation % 45) > 40
+            )
+              newRotation = Math.round(newRotation / 45) * 45;
+            return { ...el, rotation: Math.round((newRotation + 360) % 360) };
+          }
+          if (type === "radius") {
+            const cornerIdx = dragInfo.current.index;
+            if (!initialVal) return el;
+            const bounds = getVisualBounds(initialVal);
+            const maxRadius = Math.min(bounds.w, bounds.h) / 2;
+            let newR = safeNum(initialVal.borderRadius || 0, 0);
+
+            // Bug Fix: Arah Tarikan Live Corners Terbalik Saat Dirotasi
+            // Transformasikan dx, dy layar ke dx, dy lokal kotak
+            const rad = -safeNum(initialVal.rotation, 0) * (Math.PI / 180);
+            const localDx = dx * Math.cos(rad) - dy * Math.sin(rad);
+            const localDy = dx * Math.sin(rad) + dy * Math.cos(rad);
+
+            if (cornerIdx === 0)
+              newR += (localDx + localDy) / 2; // Top-Left: geser ke kanan/bawah = tambah radius
+            else if (cornerIdx === 1)
+              newR += (-localDx + localDy) / 2; // Top-Right: geser ke kiri/bawah = tambah radius
+            else if (cornerIdx === 2)
+              newR += (-localDx - localDy) / 2; // Bottom-Right: geser ke kiri/atas = tambah radius
+            else if (cornerIdx === 3) newR += (localDx - localDy) / 2; // Bottom-Left: geser ke kanan/atas = tambah radius
+
+            return {
+              ...el,
+              borderRadius: Math.max(0, Math.min(maxRadius, newR)),
+            };
+          }
+          if (type === "anchor") {
+            const idx = dragInfo.current.index;
+            if (!initialVal) return el;
+            const bounds = getVisualBounds(initialVal);
+            const pts = Array.isArray(initialVal.customPoints)
+              ? initialVal.customPoints
+                  .filter((point) => point && typeof point === "object")
+                  .map((point) => ({ ...point }))
+              : getDefaultPoints(initialVal, bounds);
+            const basePoint = pts[idx];
+            if (!basePoint) return el;
+            const rad = -safeNum(initialVal.rotation, 0) * (Math.PI / 180);
+            const localDx = dx * Math.cos(rad) - dy * Math.sin(rad);
+            const localDy = dx * Math.sin(rad) + dy * Math.cos(rad);
+            pts[idx] = { x: basePoint.x + localDx, y: basePoint.y + localDy };
+
+            // Bug Fix: Jangan gunakan state saat ini ({ ...el }) karena akan terjadi feedback loop (jumping).
+            // Selalu gunakan koordinat statis dari awal drag (initialVal) karena dx, dy adalah kumulatif dari mouse start.
             return normalizeCustomPointElement(
-              { ...el, x: newX, y: newY, width: newW, height: newH },
-              scaledPoints,
+              {
+                ...el,
+                x: initialVal.x,
+                y: initialVal.y,
+                width: initialVal.width,
+                height: initialVal.height,
+              },
+              pts,
             );
           }
-          return {
-            ...el,
-            x: newX,
-            y: newY,
-            width: safeNum(newW, el.width),
-            height: safeNum(newH, el.height),
-          };
-        }
-        if (type === "rotate") {
-          const rotateDx = e.clientX - safeNum(initialVal.centerX, e.clientX);
-          const rotateDy = e.clientY - safeNum(initialVal.centerY, e.clientY);
-          let angle = Math.atan2(rotateDy, rotateDx) * (180 / Math.PI);
-          let newRotation = safeNum(angle, 0);
-          if (Math.abs(newRotation % 45) < 5 || Math.abs(newRotation % 45) > 40)
-            newRotation = Math.round(newRotation / 45) * 45;
-          return { ...el, rotation: Math.round((newRotation + 360) % 360) };
-        }
-        if (type === "radius") {
-          const cornerIdx = dragInfo.current.index;
-          if (!initialVal) return el;
-          const bounds = getVisualBounds(initialVal);
-          const maxRadius = Math.min(bounds.w, bounds.h) / 2;
-          let newR = safeNum(initialVal.borderRadius || 0, 0);
+          return el;
+        });
 
-          // Bug Fix: Arah Tarikan Live Corners Terbalik Saat Dirotasi
-          // Transformasikan dx, dy layar ke dx, dy lokal kotak
-          const rad = -safeNum(initialVal.rotation, 0) * (Math.PI / 180);
-          const localDx = dx * Math.cos(rad) - dy * Math.sin(rad);
-          const localDy = dx * Math.sin(rad) + dy * Math.cos(rad);
-
-          if (cornerIdx === 0)
-            newR += (localDx + localDy) / 2; // Top-Left: geser ke kanan/bawah = tambah radius
-          else if (cornerIdx === 1)
-            newR += (-localDx + localDy) / 2; // Top-Right: geser ke kiri/bawah = tambah radius
-          else if (cornerIdx === 2)
-            newR += (-localDx - localDy) / 2; // Bottom-Right: geser ke kiri/atas = tambah radius
-          else if (cornerIdx === 3) newR += (localDx - localDy) / 2; // Bottom-Left: geser ke kanan/atas = tambah radius
-
-          return {
-            ...el,
-            borderRadius: Math.max(0, Math.min(maxRadius, newR)),
-          };
-        }
-        if (type === "anchor") {
-          const idx = dragInfo.current.index;
-          if (!initialVal) return el;
-          const bounds = getVisualBounds(initialVal);
-          const pts = Array.isArray(initialVal.customPoints)
-            ? initialVal.customPoints
-                .filter((point) => point && typeof point === "object")
-                .map((point) => ({ ...point }))
-            : getDefaultPoints(initialVal, bounds);
-          const basePoint = pts[idx];
-          if (!basePoint) return el;
-          const rad = -safeNum(initialVal.rotation, 0) * (Math.PI / 180);
-          const localDx = dx * Math.cos(rad) - dy * Math.sin(rad);
-          const localDy = dx * Math.sin(rad) + dy * Math.cos(rad);
-          pts[idx] = { x: basePoint.x + localDx, y: basePoint.y + localDy };
-
-          // Bug Fix: Jangan gunakan state saat ini ({ ...el }) karena akan terjadi feedback loop (jumping).
-          // Selalu gunakan koordinat statis dari awal drag (initialVal) karena dx, dy adalah kumulatif dari mouse start.
-          return normalizeCustomPointElement(
-            {
-              ...el,
-              x: initialVal.x,
-              y: initialVal.y,
-              width: initialVal.width,
-              height: initialVal.height,
-            },
-            pts,
-          );
-        }
-        return el;
+        elementsRef.current = nextElements;
+        return nextElements;
       });
-
-      elementsRef.current = nextElements;
-      return nextElements;
-    });
-  };
+    },
+    [
+      isDragging,
+      zoom,
+      elements,
+      setSelectedIds,
+      setElements,
+      mobileShift,
+      setPanOffset,
+      setMarquee,
+    ],
+  );
 
   // Keep refs updated to latest function instances
   handleMoveRef.current = handleMove;
