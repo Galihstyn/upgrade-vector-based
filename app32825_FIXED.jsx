@@ -1646,27 +1646,6 @@ const getThemeBootstrap = () => {
   };
 };
 
-const getBackgroundCollectionLabel = (bootstrap) => {
-  if (typeof window === "undefined") return "Tudiwrap";
-  const query = new URLSearchParams(window.location.search);
-  return (
-    uniqueNonEmptyStrings([
-      bootstrap?.backgroundCollectionLabel,
-      bootstrap?.productBackgroundCollectionLabel,
-      bootstrap?.collectionLabel,
-      bootstrap?.sourceCollectionLabel,
-      bootstrap?.productCollectionLabel,
-      query.get("backgroundCollectionLabel"),
-      query.get("productBackgroundCollectionLabel"),
-      query.get("collectionLabel"),
-      query.get("background_collection_label"),
-      query.get("product_background_collection_label"),
-      query.get("collection_label"),
-      "Tudiwrap",
-    ])[0] || "Tudiwrap"
-  );
-};
-
 const DEFAULT_CUSTOM_ORDER_PRODUCT_HANDLE = "tudi-custom-order";
 
 const parsePositiveVariantId = (value) => {
