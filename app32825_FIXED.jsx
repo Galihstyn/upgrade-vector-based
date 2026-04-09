@@ -2632,37 +2632,40 @@ const AppContent = () => {
     let needsRender = false;
 
     // Sync Background
-    const bgStr = background?.src || background?.color;
-    if (bgStr) {
-      if (background.src) {
-        fabric.Image.fromURL(
-          background.src,
-          (img) => {
-            // Fit image to canvas width/height preserving aspect ratio
-            const scale = Math.max(
-              ARTBOARD_W / img.width,
-              ARTBOARD_H / img.height,
-            );
-            img.set({
-              originX: "center",
-              originY: "center",
-              left: ARTBOARD_W / 2,
-              top: ARTBOARD_H / 2,
-              scaleX: scale,
-              scaleY: scale,
-            });
-            canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
-          },
-          { crossOrigin: "anonymous" },
-        );
-      } else if (background.color) {
-        canvas.setBackgroundColor(
-          background.color,
-          canvas.renderAll.bind(canvas),
-        );
+    if (canvas.__reactBackgroundRef !== background) {
+      canvas.__reactBackgroundRef = background;
+      const bgStr = background?.src || background?.color;
+      if (bgStr) {
+        if (background.src) {
+          fabric.Image.fromURL(
+            background.src,
+            (img) => {
+              // Fit image to canvas width/height preserving aspect ratio
+              const scale = Math.max(
+                ARTBOARD_W / img.width,
+                ARTBOARD_H / img.height,
+              );
+              img.set({
+                originX: "center",
+                originY: "center",
+                left: ARTBOARD_W / 2,
+                top: ARTBOARD_H / 2,
+                scaleX: scale,
+                scaleY: scale,
+              });
+              canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
+            },
+            { crossOrigin: "anonymous" },
+          );
+        } else if (background.color) {
+          canvas.setBackgroundColor(
+            background.color,
+            canvas.renderAll.bind(canvas),
+          );
+        }
+      } else {
+        canvas.setBackgroundColor("transparent", canvas.renderAll.bind(canvas));
       }
-    } else {
-      canvas.setBackgroundColor("transparent", canvas.renderAll.bind(canvas));
     }
 
     // Sync Elements
@@ -2671,6 +2674,15 @@ const AppContent = () => {
     elements.forEach((el, index) => {
       let fabObj = existingObjects[el.id];
       const isSelected = selectedIds.includes(el.id);
+
+      if (fabObj && fabObj.__reactStateRef === el && fabObj.__isSelectedRef === isSelected) {
+        // Element hasn't changed at all, just check if it needs a z-index update
+        if (canvas.getObjects()[index] !== fabObj) {
+          canvas.moveTo(fabObj, index);
+          needsRender = true;
+        }
+        return;
+      }
 
       const commonProps = {
         id: el.id,
@@ -2812,8 +2824,14 @@ const AppContent = () => {
         needsRender = true;
       }
 
+      fabObj.__reactStateRef = el;
+      fabObj.__isSelectedRef = isSelected;
+
       // Ensure z-index is correct
-      canvas.moveTo(fabObj, index);
+      if (canvas.getObjects()[index] !== fabObj) {
+        canvas.moveTo(fabObj, index);
+        needsRender = true;
+      }
 
       // Maintain selection mapping
       if (isSelected && !canvas.getActiveObjects().includes(fabObj)) {
