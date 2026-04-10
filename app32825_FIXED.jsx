@@ -2361,20 +2361,21 @@ const AppContent = () => {
     GUIDE2_W = 216.5,
     GUIDE2_H = 180;
 
-  const themeBootstrapRef = useRef(getThemeBootstrap());
-  const bootBackgroundRef = useRef(
-    themeBootstrapRef.current?.background
-      ? safeClone({ ...themeBootstrapRef.current.background, locked: true })
-      : null,
-  );
-  const editorContextSignatureRef = useRef(
-    getThemeBootstrapContextSignature(themeBootstrapRef.current),
-  );
-  const projectStorageKeyRef = useRef(
-    buildProjectStorageKey(editorContextSignatureRef.current),
-  );
+  const themeBootstrapRef = useRef(null);
+  const bootBackgroundRef = useRef(null);
+  const editorContextSignatureRef = useRef(null);
+  const projectStorageKeyRef = useRef(null);
   const initialProjectRef = useRef(null);
+
   if (initialProjectRef.current === null) {
+    // Lazy initialize expensive operations to prevent executing them on every render
+    themeBootstrapRef.current = getThemeBootstrap();
+    bootBackgroundRef.current = themeBootstrapRef.current?.background
+      ? safeClone({ ...themeBootstrapRef.current.background, locked: true })
+      : null;
+    editorContextSignatureRef.current = getThemeBootstrapContextSignature(themeBootstrapRef.current);
+    projectStorageKeyRef.current = buildProjectStorageKey(editorContextSignatureRef.current);
+
     const loadedProject = loadValidatedProjectData(
       projectStorageKeyRef.current,
       ARTBOARD_W,
@@ -2672,6 +2673,17 @@ const AppContent = () => {
       let fabObj = existingObjects[el.id];
       const isSelected = selectedIds.includes(el.id);
 
+      // Skip update if the element reference is exactly the same as last time
+      if (fabObj && fabObj.__reactStateRef === el) {
+        // Ensure z-index is correct
+        canvas.moveTo(fabObj, index);
+        // Maintain selection mapping
+        if (isSelected && !canvas.getActiveObjects().includes(fabObj)) {
+          canvas.setActiveObject(fabObj);
+        }
+        return;
+      }
+
       const commonProps = {
         id: el.id,
         left: el.x,
@@ -2811,6 +2823,9 @@ const AppContent = () => {
         }
         needsRender = true;
       }
+
+      // Cache the React state reference for the next sync check
+      fabObj.__reactStateRef = el;
 
       // Ensure z-index is correct
       canvas.moveTo(fabObj, index);

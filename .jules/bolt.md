@@ -1,0 +1,3 @@
+## 2025-02-20 - Prevent unnecessary DOM queries and Canvas sync overhead
+**Learning:** Found React component variables mapped directly to unmemoized canvas syncing arrays (`existingObjects[el.id]`). Updating an array forces re-syncing over all canvas nodes in Fabric.js even if properties didn't mutate.
+**Action:** Implemented a direct state-to-fabric object tracking trick using `__reactStateRef` referential equality to break infinite or unneeded sync loops during React lifecycle updates. Lazy initialized `getThemeBootstrap` (which does heavy DOM/URL reads) using a `if (ref.current === null)` inside the main app to avoid multiple lookups per render step.
