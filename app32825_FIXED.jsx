@@ -2361,19 +2361,22 @@ const AppContent = () => {
     GUIDE2_W = 216.5,
     GUIDE2_H = 180;
 
-  const themeBootstrapRef = useRef(getThemeBootstrap());
-  const bootBackgroundRef = useRef(
-    themeBootstrapRef.current?.background
-      ? safeClone({ ...themeBootstrapRef.current.background, locked: true })
-      : null,
-  );
-  const editorContextSignatureRef = useRef(
-    getThemeBootstrapContextSignature(themeBootstrapRef.current),
-  );
-  const projectStorageKeyRef = useRef(
-    buildProjectStorageKey(editorContextSignatureRef.current),
-  );
+  const themeBootstrapRef = useRef(null);
+  const bootBackgroundRef = useRef(null);
+  const editorContextSignatureRef = useRef(null);
+  const projectStorageKeyRef = useRef(null);
   const initialProjectRef = useRef(null);
+
+  if (themeBootstrapRef.current === null) {
+    // Lazy initialization for expensive computations
+    themeBootstrapRef.current = getThemeBootstrap();
+    bootBackgroundRef.current = themeBootstrapRef.current?.background
+      ? safeClone({ ...themeBootstrapRef.current.background, locked: true })
+      : null;
+    editorContextSignatureRef.current = getThemeBootstrapContextSignature(themeBootstrapRef.current);
+    projectStorageKeyRef.current = buildProjectStorageKey(editorContextSignatureRef.current);
+  }
+
   if (initialProjectRef.current === null) {
     const loadedProject = loadValidatedProjectData(
       projectStorageKeyRef.current,

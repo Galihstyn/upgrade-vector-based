@@ -1,0 +1,3 @@
+## 2024-04-11 - [Lazy Initialization for Expensive Computations in useRef]
+**Learning:** Calling an expensive function directly inside `useRef` executes that function on every render, even though the return value is only used for the initial setup. This is a common performance anti-pattern. `getThemeBootstrap` and `getThemeBootstrapContextSignature` are potentially expensive as they parse URLs, query the DOM, and merge objects.
+**Action:** Use the lazy initialization pattern (checking if `ref.current === null` and then computing) or use `useState` with a lazy initialization function `() => computeValue()`. For refs where the value might be updated or is purely mutable state without triggering renders, `if (ref.current === null) ref.current = computeValue();` is correct.
