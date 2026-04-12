@@ -2672,6 +2672,15 @@ const AppContent = () => {
       let fabObj = existingObjects[el.id];
       const isSelected = selectedIds.includes(el.id);
 
+      // ⚡ Bolt Performance Optimization:
+      // Cache React state referential equality directly on the Fabric object.
+      // If the state object, selection state, and z-index haven't changed,
+      // we completely skip expensive property recalculations and Fabric.js setter calls.
+      // Impact: O(1) sync for unmodified objects instead of O(N) property re-assignments.
+      if (fabObj && fabObj.__reactStateRef === el && fabObj.__isSelected === isSelected && fabObj.__index === index) {
+        return;
+      }
+
       const commonProps = {
         id: el.id,
         left: el.x,
@@ -2819,6 +2828,13 @@ const AppContent = () => {
       if (isSelected && !canvas.getActiveObjects().includes(fabObj)) {
         // If we want multiple selection sync later, adjust here
         canvas.setActiveObject(fabObj);
+      }
+
+      // ⚡ Bolt Performance Optimization: Store references for future comparison
+      if (fabObj) {
+        fabObj.__reactStateRef = el;
+        fabObj.__isSelected = isSelected;
+        fabObj.__index = index;
       }
     });
 

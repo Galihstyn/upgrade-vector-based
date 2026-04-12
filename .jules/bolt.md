@@ -1,0 +1,3 @@
+## 2024-05-16 - Referential Equality Checking for Canvas Sync
+**Learning:** When synchronizing an immutable React state array to an imperative canvas library like Fabric.js, we iterate over all objects every render. This becomes an O(N) bottleneck, causing lag even when most objects haven't changed.
+**Action:** Utilize referential equality checks by caching the React state object reference, selection state, and index directly on the corresponding Fabric.js object (e.g. `fabObj.__reactStateRef`). Since React state is immutable, if the reference is exactly the same, we can safely short-circuit and skip all `set` and update operations for that specific object.
