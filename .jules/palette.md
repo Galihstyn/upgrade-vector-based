@@ -1,0 +1,3 @@
+## 2024-04-13 - Focus Styles and ARIA Labels on Toolbar Utility Buttons
+**Learning:** Icon-only buttons lacking `aria-label`s and `focus-visible` styles can make toolbar components inaccessible for keyboard and screen reader users. Identifying these during manual visual inspection and using playwright to assert focus visual styles works nicely.
+**Action:** Always verify icon-only buttons include an `aria-label` that corresponds to its title/tooltip, and apply standard `focus-visible` ring utilities (`focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none`) to match the app's visual style. Avoid journaling these routine a11y improvements next time.
