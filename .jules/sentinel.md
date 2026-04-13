@@ -1,0 +1,4 @@
+## 2024-05-31 - [Open Redirect / Path Traversal to XSS via window.location.href]
+**Vulnerability:** The application used `window.location.href = \`/products/${sourceHandle}\`` where `sourceHandle` was an unencoded value sourced from URL parameters / bootstrap data (`themeBootstrapRef.current?.productHandle`). This allowed path traversal to open redirect (e.g. `../../../../javascript:alert(1)`) or direct execution if parsed differently.
+**Learning:** Even when appending user input to a trusted base path, failure to encode the input can allow an attacker to traverse out of the trusted path and potentially execute JavaScript via the `javascript:` pseudo-protocol.
+**Prevention:** Always use `encodeURIComponent()` on user-controlled variables when inserting them into the path segment of a URL before passing them to sinks like `window.location.href`.
