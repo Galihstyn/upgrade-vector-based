@@ -2672,6 +2672,20 @@ const AppContent = () => {
       let fabObj = existingObjects[el.id];
       const isSelected = selectedIds.includes(el.id);
 
+      // Performance Optimization: Check referential equality to skip unchanged elements
+      if (
+        fabObj &&
+        fabObj.__reactStateRef === el &&
+        fabObj.__isSelected === isSelected
+      ) {
+        if (fabObj.__index !== index) {
+          canvas.moveTo(fabObj, index);
+          fabObj.__index = index;
+          needsRender = true;
+        }
+        return; // skip updates
+      }
+
       const commonProps = {
         id: el.id,
         left: el.x,
@@ -2813,13 +2827,20 @@ const AppContent = () => {
       }
 
       // Ensure z-index is correct
-      canvas.moveTo(fabObj, index);
+      if (fabObj.__index !== index) {
+        canvas.moveTo(fabObj, index);
+      }
 
       // Maintain selection mapping
       if (isSelected && !canvas.getActiveObjects().includes(fabObj)) {
         // If we want multiple selection sync later, adjust here
         canvas.setActiveObject(fabObj);
       }
+
+      // Cache state for performance optimization
+      fabObj.__reactStateRef = el;
+      fabObj.__isSelected = isSelected;
+      fabObj.__index = index;
     });
 
     // Remove deleted elements
