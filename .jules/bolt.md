@@ -1,0 +1,3 @@
+## 2024-05-24 - Single-pass bounding box calculation for point arrays
+**Learning:** Using `Math.min(...points.map(p => p.x))` on arrays is a performance anti-pattern. It introduces `O(4N)` operations for a bounding box, requires creating intermediate arrays, and can cause a "Maximum call stack size exceeded" error when using the spread operator (`...`) on arrays with more than ~65,000 items. This codebase requires frequent calculation of bounding boxes for custom paths and transformed shapes.
+**Action:** Use the centralized `getPointsBounds(points)` helper function (which uses a single `for` loop to compute min/max coordinates in `O(N)` time without spreading) instead of `Math.min`/`Math.max` with the spread operator when dealing with coordinate arrays.
