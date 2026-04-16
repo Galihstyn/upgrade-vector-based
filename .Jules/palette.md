@@ -1,0 +1,4 @@
+## 2025-02-12 - Accessibility on Icon-Only Canvas Controls\n**Learning:** Interactive canvas utilities like zoom and undo frequently lack accessible text. Adding standard ARIA labels and consistent focus rings makes these silent controls discoverable for keyboard and screen reader users.\n**Action:** Always verify icon-only buttons have descriptive aria-labels and apply  ring utilities to ensure keyboard navigation is visually clear without disrupting mouse users.
+## 2025-02-12 - Accessibility on Icon-Only Canvas Controls
+**Learning:** Interactive canvas utilities like zoom and undo frequently lack accessible text. Adding standard ARIA labels and consistent focus rings makes these silent controls discoverable for keyboard and screen reader users.
+**Action:** Always verify icon-only buttons have descriptive aria-labels and apply focus-visible ring utilities to ensure keyboard navigation is visually clear without disrupting mouse users.
