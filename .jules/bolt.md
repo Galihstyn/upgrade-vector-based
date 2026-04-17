@@ -1,0 +1,3 @@
+## 2024-05-18 - React useRef() Lazy Initialization
+**Learning:** In React, passing the result of a function directly to `useRef(expensiveFunction())` means `expensiveFunction()` is still executed on *every single render*, even though the ref's `.current` value is only updated with the result on the initial render. This caused severe bottlenecks during high-frequency updates (like canvas dragging) because DOM queries, cloning, and hashing were re-running continuously.
+**Action:** Always use the lazy initialization pattern for refs that require computation: `const myRef = useRef(null); if (myRef.current === null) { myRef.current = expensiveFunction(); }` This ensures the expensive logic runs strictly once.
