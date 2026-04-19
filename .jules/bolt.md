@@ -1,0 +1,3 @@
+## 2024-05-18 - useRef Lazy Initialization Bottleneck
+**Learning:** Initializing `useRef` hooks with inline function calls like `useRef(expensiveFunction())` forces React to execute those functions on *every single render cycle*, even though the result is only kept from the first render. In components like `AppContent` that render frequently, this causes unnecessary DOM queries and JSON parsing, drastically affecting performance.
+**Action:** Always use the lazy initialization pattern for refs that require computation: initialize with `useRef(null)` and conditionally set the value `if (ref.current === null)`.
