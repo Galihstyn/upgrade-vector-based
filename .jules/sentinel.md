@@ -1,0 +1,4 @@
+## 2025-02-14 - URL parameter handling in redirects
+**Vulnerability:** User-controlled input (`productHandle` from the URL) was concatenated directly into a redirect path (`/products/${sourceHandle}`) without encoding, and assigned to `window.location.href`. This is a classic pattern that can lead to open redirects, path traversal, or XSS via pseudo-protocols like `javascript:`.
+**Learning:** React state extracted from URL parameters in client-side routing needs explicit sanitization/encoding before being used in sinks that alter the window location or modify the DOM state externally. Relying on an internal representation isn't enough if the source was originally the URL.
+**Prevention:** Always wrap user-controlled path segments with `encodeURIComponent()` before appending them to URLs for redirection, or validate them against an explicit allowlist.
