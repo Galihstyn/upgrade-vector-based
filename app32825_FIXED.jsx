@@ -2843,8 +2843,10 @@ const AppContent = () => {
     const sourceHandle = String(
       themeBootstrapRef.current?.productHandle || "",
     ).trim();
+    // Wrap sourceHandle in encodeURIComponent to prevent path traversal/XSS
+    // as it is later assigned to window.location.href.
     const safeFallbackProductUrl = sourceHandle
-      ? `/products/${sourceHandle}`
+      ? `/products/${encodeURIComponent(sourceHandle)}`
       : "/collections/all";
 
     try {
