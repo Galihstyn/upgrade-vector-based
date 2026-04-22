@@ -1,0 +1,3 @@
+## 2025-02-28 - Unnecessary Function Execution in useRef
+**Learning:** Found an instance in React where expensive initialization functions (`getThemeBootstrap()`, `safeClone()`, etc.) were executed directly within `useRef()`. Because JS evaluates arguments before calling functions, this caused these expensive setup routines to execute on every single re-render of the component, even though `useRef` only takes the value on the first render.
+**Action:** When initializing a `useRef` with the result of a non-trivial or expensive computation, always use the lazy initialization pattern instead: initialize the ref with `null`, and set it inside an `if (ref.current === null)` block to ensure the expensive work is strictly executed once.
