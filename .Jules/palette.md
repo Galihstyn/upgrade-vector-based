@@ -1,0 +1,3 @@
+## 2024-05-24 - Accessible Utility Controls
+**Learning:** Icon-only utility buttons and dynamically changing displays (like zoom percentage) lack basic accessibility, preventing screen readers and keyboard users from effectively using core functionality.
+**Action:** Always add explicit `aria-label`s to icon-only buttons, ensure focus states are visible using `focus-visible:ring-2`, and wrap dynamically updated textual values with `aria-live="polite"` so state changes are properly announced.
