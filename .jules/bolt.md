@@ -1,0 +1,3 @@
+## 2026-04-24 - Lazy Initialization of Expensive DOM/Parse Operations in Refs
+**Learning:** In React hot paths (like the main canvas component), assigning results of expensive operations (e.g., `getThemeBootstrap()`, `safeClone()`, `buildProjectStorageKey()`) directly to `useRef(expensiveFunction())` causes these functions to execute on *every single render*, even though the ref only uses the initial value. This is a significant anti-pattern that can degrade canvas performance.
+**Action:** Always use the lazy initialization pattern (e.g., `if (ref.current === null) { ref.current = expensiveFunction(); }`) for refs that require complex setup. Grouping multiple lazy initializations into a single `if` block can further cleanly manage setup logic.
