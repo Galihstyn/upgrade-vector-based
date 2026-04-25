@@ -2739,8 +2739,12 @@ const AppContent = () => {
           fabObj.on("changed", function () {
             if (syncLockRef.current) return;
             syncLockRef.current = true;
-              const textVal = this.text;
-              applyElementsUpdate(prev => prev.map(item => item.id === el.id ? { ...item, content: textVal } : item));
+            const textVal = this.text;
+            applyElementsUpdate((prev) =>
+              prev.map((item) =>
+                item.id === el.id ? { ...item, content: textVal } : item,
+              ),
+            );
             setTimeout(() => (syncLockRef.current = false), 10);
           });
         } else if (el.type === "image") {
@@ -4415,7 +4419,8 @@ const AppContent = () => {
           onClick={undo}
           disabled={historyIndex === 0}
           title="Undo"
-          className="w-8 h-8 flex items-center justify-center hover:bg-slate-700 rounded-full disabled:opacity-20 text-indigo-400 transition-all"
+          aria-label="Undo"
+          className="w-8 h-8 flex items-center justify-center hover:bg-slate-700 rounded-full disabled:opacity-20 text-indigo-400 transition-all focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
         >
           <Undo2 size={16} />
         </button>
@@ -4423,7 +4428,8 @@ const AppContent = () => {
           onClick={redo}
           disabled={historyIndex === history.length - 1}
           title="Redo"
-          className="w-8 h-8 flex items-center justify-center hover:bg-slate-700 rounded-full disabled:opacity-20 text-indigo-400 transition-all"
+          aria-label="Redo"
+          className="w-8 h-8 flex items-center justify-center hover:bg-slate-700 rounded-full disabled:opacity-20 text-indigo-400 transition-all focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
         >
           <Redo2 size={16} />
         </button>
@@ -4433,17 +4439,23 @@ const AppContent = () => {
         <button
           onClick={() => setZoom((z) => Math.min(4, z + 0.1))}
           title="Zoom In"
-          className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-all"
+          aria-label="Zoom In"
+          className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-all focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
         >
           <ZoomIn size={16} />
         </button>
-        <span className="text-[10px] font-mono text-slate-300 font-bold w-9 text-center">
+        <span
+          className="text-[10px] font-mono text-slate-300 font-bold w-9 text-center"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           {Math.round(zoom * 100)}%
         </span>
         <button
           onClick={() => setZoom((z) => Math.max(0.1, z - 0.1))}
           title="Zoom Out"
-          className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-all"
+          aria-label="Zoom Out"
+          className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-all focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
         >
           <ZoomOut size={16} />
         </button>
@@ -4877,7 +4889,12 @@ const AppContent = () => {
             <div
               id="main-canvas-container"
               onPointerDown={(e) => {
-                if ((e.target.id === "main-canvas-container" || e.target.classList.contains("upper-canvas")) && !spaceDown.current && selectedIds.length === 0) {
+                if (
+                  (e.target.id === "main-canvas-container" ||
+                    e.target.classList.contains("upper-canvas")) &&
+                  !spaceDown.current &&
+                  selectedIds.length === 0
+                ) {
                   setSelectedIds([]);
                   setShowBackgroundMenu(false);
                   setShowShapeMenu(false);
