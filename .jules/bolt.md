@@ -1,0 +1,4 @@
+
+## 2024-04-26 - Prevent redundant Fabric.js object updates using referential caching
+**Learning:** In bridging a declarative environment (React) with an imperative canvas API (Fabric.js), syncing state often requires mapping through all elements. Previously, `app32825_FIXED.jsx` called `.set()` and `.moveTo()` on every Fabric object for every state change regardless of whether the specific element changed.
+**Action:** Always implement a referential equality cache when syncing immutable React state arrays to imperative libraries. By caching the React state object reference directly on the canvas object (`fabObj.__reactStateRef = el`), we can do a fast `O(1)` check (`fabObj.__reactStateRef === el`) to skip updating unchanged objects, significantly reducing redundant property updates and canvas recalculations.
