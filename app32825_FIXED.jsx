@@ -2672,6 +2672,18 @@ const AppContent = () => {
       let fabObj = existingObjects[el.id];
       const isSelected = selectedIds.includes(el.id);
 
+      // Performance Optimization: Skip redundant property updates and re-rendering for unmodified objects
+      // By caching the React state object reference directly on the Fabric instance,
+      // we can do a quick referential equality check (O(1)) instead of an O(N) diff.
+      if (
+        fabObj &&
+        fabObj.__reactStateRef === el &&
+        fabObj.__isSelected === isSelected &&
+        fabObj.__index === index
+      ) {
+        return;
+      }
+
       const commonProps = {
         id: el.id,
         left: el.x,
@@ -2739,8 +2751,12 @@ const AppContent = () => {
           fabObj.on("changed", function () {
             if (syncLockRef.current) return;
             syncLockRef.current = true;
-              const textVal = this.text;
-              applyElementsUpdate(prev => prev.map(item => item.id === el.id ? { ...item, content: textVal } : item));
+            const textVal = this.text;
+            applyElementsUpdate((prev) =>
+              prev.map((item) =>
+                item.id === el.id ? { ...item, content: textVal } : item,
+              ),
+            );
             setTimeout(() => (syncLockRef.current = false), 10);
           });
         } else if (el.type === "image") {
@@ -2814,6 +2830,11 @@ const AppContent = () => {
 
       // Ensure z-index is correct
       canvas.moveTo(fabObj, index);
+
+      // Cache the React state reference to prevent redundant updates in future renders
+      fabObj.__reactStateRef = el;
+      fabObj.__isSelected = isSelected;
+      fabObj.__index = index;
 
       // Maintain selection mapping
       if (isSelected && !canvas.getActiveObjects().includes(fabObj)) {
@@ -4877,7 +4898,12 @@ const AppContent = () => {
             <div
               id="main-canvas-container"
               onPointerDown={(e) => {
-                if ((e.target.id === "main-canvas-container" || e.target.classList.contains("upper-canvas")) && !spaceDown.current && selectedIds.length === 0) {
+                if (
+                  (e.target.id === "main-canvas-container" ||
+                    e.target.classList.contains("upper-canvas")) &&
+                  !spaceDown.current &&
+                  selectedIds.length === 0
+                ) {
                   setSelectedIds([]);
                   setShowBackgroundMenu(false);
                   setShowShapeMenu(false);
