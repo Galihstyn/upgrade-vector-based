@@ -1,0 +1,10 @@
+
+> @ dev /app
+> vite
+
+
+  VITE v8.0.10  ready in 327 ms
+
+  ➜  Local:   http://localhost:3000/
+  ➜  Network: http://192.168.0.2:3000/
+10:19:58 AM [vite] (client) hmr update /app32825_FIXED.jsx
