@@ -1,0 +1,3 @@
+## 2024-05-24 - Avoid passing expensive function calls to `useRef`
+**Learning:** In React, `useRef(expensiveFunction())` is an anti-pattern. While the ref only adopts the value on the *initial* render, `expensiveFunction()` itself is still evaluated on *every single render* to pass its result as the argument. In `app32825_FIXED.jsx`, doing this with DOM queries (`getThemeBootstrap`), `JSON.parse`/`stringify` (`safeClone`), and string manipulation was causing unnecessary main thread blocking on each keystroke or drag event in the canvas editor.
+**Action:** Always use the lazy initialization pattern for expensive ref assignments: `const ref = useRef(null); if (ref.current === null) { ref.current = expensiveFunction(); }`
