@@ -1,0 +1,5 @@
+## 2024-05-19 - Added ARIA labels and focus states to utility toolbar
+
+**Learning:** Icon-only buttons in toolbars (like Undo, Redo, Zoom In, Zoom Out) frequently lack `aria-label`s, making them opaque to screen readers. Relying solely on `title` attributes is insufficient for comprehensive accessibility. Furthermore, keyboard users need distinct focus indicators (`focus-visible`) to understand their location within tight toolbars. Adding `aria-live="polite"` to dynamically changing numeric displays (like zoom percentage) ensures screen readers announce updates seamlessly without disrupting the user flow.
+
+**Action:** When working with toolbars or clusters of icon-only interactive elements, ensure every element has an explicit `aria-label` describing its action. Apply visible focus states using utility classes like `focus-visible:ring-2` to aid keyboard navigation. For text elements that change dynamically based on adjacent control interactions (e.g., zoom level, item count), consistently apply `aria-live="polite"`.
