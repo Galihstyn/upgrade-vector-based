@@ -2844,17 +2844,21 @@ const AppContent = () => {
       themeBootstrapRef.current?.productHandle || "",
     ).trim();
     const safeFallbackProductUrl = sourceHandle
-      ? `/products/${sourceHandle}`
+      ? `/products/${encodeURIComponent(sourceHandle)}`
       : "/collections/all";
 
     try {
       if (document.referrer) {
         const referrerUrl = new URL(document.referrer, window.location.origin);
+        // Security: Prevent open redirects, path traversal, and javascript: pseudo-protocol execution
         if (
           referrerUrl.origin === window.location.origin &&
-          referrerUrl.pathname !== window.location.pathname
+          referrerUrl.origin !== "null" &&
+          referrerUrl.pathname !== window.location.pathname &&
+          referrerUrl.pathname.startsWith("/") &&
+          !referrerUrl.pathname.startsWith("//")
         ) {
-          window.location.href = referrerUrl.href;
+          window.location.href = referrerUrl.pathname + referrerUrl.search + referrerUrl.hash;
           return;
         }
       }
