@@ -2361,18 +2361,34 @@ const AppContent = () => {
     GUIDE2_W = 216.5,
     GUIDE2_H = 180;
 
-  const themeBootstrapRef = useRef(getThemeBootstrap());
-  const bootBackgroundRef = useRef(
-    themeBootstrapRef.current?.background
+  // Performance optimization: Use lazy initialization for expensive operations
+  // like DOM queries (`getThemeBootstrap`) and JSON parsing (`safeClone`).
+  // Direct calls like `useRef(getThemeBootstrap())` execute on every single render.
+  const themeBootstrapRef = useRef(null);
+  if (themeBootstrapRef.current === null) {
+    themeBootstrapRef.current = getThemeBootstrap();
+  }
+
+  const bootBackgroundRef = useRef(null);
+  if (bootBackgroundRef.current === null) {
+    bootBackgroundRef.current = themeBootstrapRef.current?.background
       ? safeClone({ ...themeBootstrapRef.current.background, locked: true })
-      : null,
-  );
-  const editorContextSignatureRef = useRef(
-    getThemeBootstrapContextSignature(themeBootstrapRef.current),
-  );
-  const projectStorageKeyRef = useRef(
-    buildProjectStorageKey(editorContextSignatureRef.current),
-  );
+      : null;
+  }
+
+  const editorContextSignatureRef = useRef(null);
+  if (editorContextSignatureRef.current === null) {
+    editorContextSignatureRef.current = getThemeBootstrapContextSignature(
+      themeBootstrapRef.current,
+    );
+  }
+
+  const projectStorageKeyRef = useRef(null);
+  if (projectStorageKeyRef.current === null) {
+    projectStorageKeyRef.current = buildProjectStorageKey(
+      editorContextSignatureRef.current,
+    );
+  }
   const initialProjectRef = useRef(null);
   if (initialProjectRef.current === null) {
     const loadedProject = loadValidatedProjectData(
@@ -2739,8 +2755,12 @@ const AppContent = () => {
           fabObj.on("changed", function () {
             if (syncLockRef.current) return;
             syncLockRef.current = true;
-              const textVal = this.text;
-              applyElementsUpdate(prev => prev.map(item => item.id === el.id ? { ...item, content: textVal } : item));
+            const textVal = this.text;
+            applyElementsUpdate((prev) =>
+              prev.map((item) =>
+                item.id === el.id ? { ...item, content: textVal } : item,
+              ),
+            );
             setTimeout(() => (syncLockRef.current = false), 10);
           });
         } else if (el.type === "image") {
@@ -4877,7 +4897,12 @@ const AppContent = () => {
             <div
               id="main-canvas-container"
               onPointerDown={(e) => {
-                if ((e.target.id === "main-canvas-container" || e.target.classList.contains("upper-canvas")) && !spaceDown.current && selectedIds.length === 0) {
+                if (
+                  (e.target.id === "main-canvas-container" ||
+                    e.target.classList.contains("upper-canvas")) &&
+                  !spaceDown.current &&
+                  selectedIds.length === 0
+                ) {
                   setSelectedIds([]);
                   setShowBackgroundMenu(false);
                   setShowShapeMenu(false);
