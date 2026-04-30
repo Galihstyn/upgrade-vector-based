@@ -1,0 +1,3 @@
+## 2024-05-18 - Hoisting Math calls in getWarpMetrics loop
+**Learning:** Performance-critical sections like the `getWarpMetrics` text-warping loop inside React component render logic can become a CPU bottleneck. Repeatedly recalculating invariant math values and creating objects/arrays inside `Array.map` or `.forEach` loops is a common anti-pattern.
+**Action:** Always hoist loop-invariant computations (such as `Math.cos` and `Math.sin`) and replace unnecessary `.map()` chains that allocate intermediate arrays with inline variable calculations to minimize redundant CPU cycles and maximize execution efficiency.
