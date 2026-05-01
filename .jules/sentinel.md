@@ -1,0 +1,4 @@
+## 2024-05-01 - Prevent Protocol-Relative Open Redirects via window.location.href
+**Vulnerability:** Constructing fallback URLs and using `document.referrer` directly with `window.location.href` creates an open redirect or protocol-relative injection vulnerability (e.g., `//attacker.com`). Furthermore, `referrerUrl.origin` could be `"null"` for local context or `javascript:` URIs.
+**Learning:** `new URL(document.referrer, window.location.origin)` isn't fully safe if the document is allowed to redirect to the raw `referrerUrl.href` when origins technically match. The `pathname` and other URL components must be strictly validated.
+**Prevention:** Always rebuild safe internal paths dynamically via path components (`referrerUrl.pathname + referrerUrl.search + referrerUrl.hash`) and strictly check for `pathname.startsWith("/")` and `!pathname.startsWith("//")`. Apply `encodeURIComponent` to any dynamic values injected into local route configurations.

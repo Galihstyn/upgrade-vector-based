@@ -2739,8 +2739,12 @@ const AppContent = () => {
           fabObj.on("changed", function () {
             if (syncLockRef.current) return;
             syncLockRef.current = true;
-              const textVal = this.text;
-              applyElementsUpdate(prev => prev.map(item => item.id === el.id ? { ...item, content: textVal } : item));
+            const textVal = this.text;
+            applyElementsUpdate((prev) =>
+              prev.map((item) =>
+                item.id === el.id ? { ...item, content: textVal } : item,
+              ),
+            );
             setTimeout(() => (syncLockRef.current = false), 10);
           });
         } else if (el.type === "image") {
@@ -2843,22 +2847,32 @@ const AppContent = () => {
     const sourceHandle = String(
       themeBootstrapRef.current?.productHandle || "",
     ).trim();
+    // SEC-FIX: URI encode user-controlled input to prevent path traversal/open redirect
     const safeFallbackProductUrl = sourceHandle
-      ? `/products/${sourceHandle}`
+      ? `/products/${encodeURIComponent(sourceHandle)}`
       : "/collections/all";
 
     try {
       if (document.referrer) {
         const referrerUrl = new URL(document.referrer, window.location.origin);
+        // SEC-FIX: Ensure origin is strict and not "null" (as in javascript: URIs),
+        // and construct local path securely avoiding protocol-relative injections
         if (
           referrerUrl.origin === window.location.origin &&
-          referrerUrl.pathname !== window.location.pathname
+          referrerUrl.origin !== "null" &&
+          referrerUrl.pathname !== window.location.pathname &&
+          referrerUrl.pathname.startsWith("/") &&
+          !referrerUrl.pathname.startsWith("//")
         ) {
-          window.location.href = referrerUrl.href;
+          // Redirect using safe components rather than the raw href
+          window.location.href =
+            referrerUrl.pathname + referrerUrl.search + referrerUrl.hash;
           return;
         }
       }
-    } catch (error) {}
+    } catch (error) {
+      // SEC-FIX: Silently fail to fallback route without leaking errors
+    }
 
     if (window.history.length > 1) {
       window.history.back();
@@ -4877,7 +4891,12 @@ const AppContent = () => {
             <div
               id="main-canvas-container"
               onPointerDown={(e) => {
-                if ((e.target.id === "main-canvas-container" || e.target.classList.contains("upper-canvas")) && !spaceDown.current && selectedIds.length === 0) {
+                if (
+                  (e.target.id === "main-canvas-container" ||
+                    e.target.classList.contains("upper-canvas")) &&
+                  !spaceDown.current &&
+                  selectedIds.length === 0
+                ) {
                   setSelectedIds([]);
                   setShowBackgroundMenu(false);
                   setShowShapeMenu(false);
