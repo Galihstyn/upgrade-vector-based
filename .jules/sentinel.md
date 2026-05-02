@@ -1,0 +1,4 @@
+## 2025-02-21 - [Open Redirect & XSS] Document.referrer & URL Parameters
+**Vulnerability:** The application was using unencoded URL parameters to construct internal redirect URLs (`/products/${sourceHandle}`) and blindly redirecting to `document.referrer` based only on origin and pathname checks.
+**Learning:** `document.referrer` can contain `javascript:` pseudo-protocols (resulting in `"null"` origin) or protocol-relative URLs (`//example.com`). Also, blindly appending variables to URLs without `encodeURIComponent` can lead to XSS or Path Traversal.
+**Prevention:** Always use `encodeURIComponent` when appending dynamic data to URL paths. When using `document.referrer` for internal redirects, ensure the origin matches, is not `"null"`, and redirect ONLY using `.pathname + .search + .hash` while verifying `.pathname` starts with exactly one `/` and not `//`.
