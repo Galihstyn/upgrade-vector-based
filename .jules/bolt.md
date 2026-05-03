@@ -1,0 +1,3 @@
+## 2024-05-24 - Unrolled math calculations in hot paths
+**Learning:** React component with canvas integration features intensive mathematical computations per character inside loops (like `getWarpMetrics`). Intermediate array allocations with `.map()` and `.forEach()` combined with repeated identical trig calculations inside such inner loops introduce unnecessary GC pressure and CPU overhead.
+**Action:** Always inline trig operations, extract invariant parts out of innermost mathematical evaluations, and unroll array traversals directly into variables to minimize allocations when dealing with rendering-critical metrics computations.

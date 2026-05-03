@@ -437,23 +437,41 @@ const getWarpMetrics = (el) => {
     const curHeight = H * sY;
     const halfW = curWidth / 2;
     const halfH = curHeight / 2;
-    const rad = angle;
-    const corners = [
-      { x: -halfW, y: -halfH },
-      { x: halfW, y: -halfH },
-      { x: halfW, y: halfH },
-      { x: -halfW, y: halfH },
-    ].map((p) => ({
-      x: dx + p.x * Math.cos(rad) - p.y * Math.sin(rad),
-      y: dy + p.x * Math.sin(rad) + p.y * Math.cos(rad),
-    }));
+    const cosA = Math.cos(angle);
+    const sinA = Math.sin(angle);
+    const wCos = halfW * cosA;
+    const wSin = halfW * sinA;
+    const hCos = halfH * cosA;
+    const hSin = halfH * sinA;
 
-    corners.forEach((c) => {
-      if (c.x < minX) minX = c.x;
-      if (c.x > maxX) maxX = c.x;
-      if (c.y < minY) minY = c.y;
-      if (c.y > maxY) maxY = c.y;
-    });
+    // ⚡ Bolt: Removed .map() and .forEach() overhead. Unrolled corner calculations.
+    let x = dx - wCos + hSin;
+    let y = dy - wSin - hCos;
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+
+    x = dx + wCos + hSin;
+    y = dy + wSin - hCos;
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+
+    x = dx + wCos - hSin;
+    y = dy + wSin + hCos;
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+
+    x = dx - wCos - hSin;
+    y = dy - wSin + hCos;
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
 
     return { char, dx, dy, angle, sX, sY };
   });
@@ -2739,8 +2757,12 @@ const AppContent = () => {
           fabObj.on("changed", function () {
             if (syncLockRef.current) return;
             syncLockRef.current = true;
-              const textVal = this.text;
-              applyElementsUpdate(prev => prev.map(item => item.id === el.id ? { ...item, content: textVal } : item));
+            const textVal = this.text;
+            applyElementsUpdate((prev) =>
+              prev.map((item) =>
+                item.id === el.id ? { ...item, content: textVal } : item,
+              ),
+            );
             setTimeout(() => (syncLockRef.current = false), 10);
           });
         } else if (el.type === "image") {
@@ -4877,7 +4899,12 @@ const AppContent = () => {
             <div
               id="main-canvas-container"
               onPointerDown={(e) => {
-                if ((e.target.id === "main-canvas-container" || e.target.classList.contains("upper-canvas")) && !spaceDown.current && selectedIds.length === 0) {
+                if (
+                  (e.target.id === "main-canvas-container" ||
+                    e.target.classList.contains("upper-canvas")) &&
+                  !spaceDown.current &&
+                  selectedIds.length === 0
+                ) {
                   setSelectedIds([]);
                   setShowBackgroundMenu(false);
                   setShowShapeMenu(false);
