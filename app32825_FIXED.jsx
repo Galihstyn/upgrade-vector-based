@@ -2739,8 +2739,12 @@ const AppContent = () => {
           fabObj.on("changed", function () {
             if (syncLockRef.current) return;
             syncLockRef.current = true;
-              const textVal = this.text;
-              applyElementsUpdate(prev => prev.map(item => item.id === el.id ? { ...item, content: textVal } : item));
+            const textVal = this.text;
+            applyElementsUpdate((prev) =>
+              prev.map((item) =>
+                item.id === el.id ? { ...item, content: textVal } : item,
+              ),
+            );
             setTimeout(() => (syncLockRef.current = false), 10);
           });
         } else if (el.type === "image") {
@@ -2844,7 +2848,7 @@ const AppContent = () => {
       themeBootstrapRef.current?.productHandle || "",
     ).trim();
     const safeFallbackProductUrl = sourceHandle
-      ? `/products/${sourceHandle}`
+      ? `/products/${encodeURIComponent(sourceHandle)}`
       : "/collections/all";
 
     try {
@@ -2852,9 +2856,13 @@ const AppContent = () => {
         const referrerUrl = new URL(document.referrer, window.location.origin);
         if (
           referrerUrl.origin === window.location.origin &&
-          referrerUrl.pathname !== window.location.pathname
+          referrerUrl.origin !== "null" &&
+          referrerUrl.pathname !== window.location.pathname &&
+          referrerUrl.pathname.startsWith("/") &&
+          !referrerUrl.pathname.startsWith("//")
         ) {
-          window.location.href = referrerUrl.href;
+          window.location.href =
+            referrerUrl.pathname + referrerUrl.search + referrerUrl.hash;
           return;
         }
       }
@@ -4877,7 +4885,12 @@ const AppContent = () => {
             <div
               id="main-canvas-container"
               onPointerDown={(e) => {
-                if ((e.target.id === "main-canvas-container" || e.target.classList.contains("upper-canvas")) && !spaceDown.current && selectedIds.length === 0) {
+                if (
+                  (e.target.id === "main-canvas-container" ||
+                    e.target.classList.contains("upper-canvas")) &&
+                  !spaceDown.current &&
+                  selectedIds.length === 0
+                ) {
                   setSelectedIds([]);
                   setShowBackgroundMenu(false);
                   setShowShapeMenu(false);
