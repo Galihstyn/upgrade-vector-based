@@ -1,0 +1,3 @@
+## 2024-05-05 - Optimize getWarpMetrics corner calculations
+**Learning:** In performance-critical functions like getWarpMetrics that run per character, allocating intermediate arrays (like the `corners` array of objects) and running `.map()` / `.forEach()` chains for simple bounding box math creates significant garbage collection overhead and redundant calculation. Specifically, recalculating `Math.cos` and `Math.sin` inside the inner map when the angle only changes per character wastes CPU cycles.
+**Action:** Replace intermediate `.map()` chains that allocate objects with inline variable calculations, and hoist invariant computations (like trig functions for the corner rotation) outside of the inner corner calculations.
