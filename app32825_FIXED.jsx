@@ -438,22 +438,42 @@ const getWarpMetrics = (el) => {
     const halfW = curWidth / 2;
     const halfH = curHeight / 2;
     const rad = angle;
-    const corners = [
-      { x: -halfW, y: -halfH },
-      { x: halfW, y: -halfH },
-      { x: halfW, y: halfH },
-      { x: -halfW, y: halfH },
-    ].map((p) => ({
-      x: dx + p.x * Math.cos(rad) - p.y * Math.sin(rad),
-      y: dy + p.x * Math.sin(rad) + p.y * Math.cos(rad),
-    }));
 
-    corners.forEach((c) => {
-      if (c.x < minX) minX = c.x;
-      if (c.x > maxX) maxX = c.x;
-      if (c.y < minY) minY = c.y;
-      if (c.y > maxY) maxY = c.y;
-    });
+    const cosRad = Math.cos(rad);
+    const sinRad = Math.sin(rad);
+
+    // Corner 1: (-halfW, -halfH)
+    const x1 = dx - halfW * cosRad + halfH * sinRad;
+    const y1 = dy - halfW * sinRad - halfH * cosRad;
+    // Corner 2: (halfW, -halfH)
+    const x2 = dx + halfW * cosRad + halfH * sinRad;
+    const y2 = dy + halfW * sinRad - halfH * cosRad;
+    // Corner 3: (halfW, halfH)
+    const x3 = dx + halfW * cosRad - halfH * sinRad;
+    const y3 = dy + halfW * sinRad + halfH * cosRad;
+    // Corner 4: (-halfW, halfH)
+    const x4 = dx - halfW * cosRad - halfH * sinRad;
+    const y4 = dy - halfW * sinRad + halfH * cosRad;
+
+    if (x1 < minX) minX = x1;
+    if (x1 > maxX) maxX = x1;
+    if (y1 < minY) minY = y1;
+    if (y1 > maxY) maxY = y1;
+
+    if (x2 < minX) minX = x2;
+    if (x2 > maxX) maxX = x2;
+    if (y2 < minY) minY = y2;
+    if (y2 > maxY) maxY = y2;
+
+    if (x3 < minX) minX = x3;
+    if (x3 > maxX) maxX = x3;
+    if (y3 < minY) minY = y3;
+    if (y3 > maxY) maxY = y3;
+
+    if (x4 < minX) minX = x4;
+    if (x4 > maxX) maxX = x4;
+    if (y4 < minY) minY = y4;
+    if (y4 > maxY) maxY = y4;
 
     return { char, dx, dy, angle, sX, sY };
   });
