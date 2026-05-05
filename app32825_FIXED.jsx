@@ -2843,18 +2843,24 @@ const AppContent = () => {
     const sourceHandle = String(
       themeBootstrapRef.current?.productHandle || "",
     ).trim();
+    // Sentinel: Fix open redirect and path traversal by encoding the user-controlled productHandle
     const safeFallbackProductUrl = sourceHandle
-      ? `/products/${sourceHandle}`
+      ? `/products/${encodeURIComponent(sourceHandle)}`
       : "/collections/all";
 
     try {
       if (document.referrer) {
         const referrerUrl = new URL(document.referrer, window.location.origin);
+        // Sentinel: Ensure origin is valid and pathname is an absolute path (not protocol-relative)
         if (
           referrerUrl.origin === window.location.origin &&
-          referrerUrl.pathname !== window.location.pathname
+          referrerUrl.origin !== "null" &&
+          referrerUrl.pathname !== window.location.pathname &&
+          referrerUrl.pathname.startsWith("/") &&
+          !referrerUrl.pathname.startsWith("//")
         ) {
-          window.location.href = referrerUrl.href;
+          // Sentinel: Redirect using parts to avoid any injected schemes
+          window.location.href = referrerUrl.pathname + referrerUrl.search + referrerUrl.hash;
           return;
         }
       }
