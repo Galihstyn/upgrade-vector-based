@@ -1,0 +1,3 @@
+## 2024-05-05 - Added Accessibility to Zoom Controls
+**Learning:** Found that custom utility bars (like the Zoom and Undo/Redo panel) often use icon-only buttons (`Undo2`, `Redo2`, `ZoomIn`, `ZoomOut`) that lack `aria-label` attributes and focus-visible styling. Furthermore, dynamic text like zoom percentage (`{Math.round(zoom * 100)}%`) isn't announced to screen readers.
+**Action:** Next time I encounter a custom toolbar or utility bar, I should proactively verify that all icon buttons have an `aria-label`, have keyboard focus states (`focus-visible:ring-2`, etc.), and that any dynamic value displays contain `aria-live="polite"`.
