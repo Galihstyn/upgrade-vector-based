@@ -2739,8 +2739,12 @@ const AppContent = () => {
           fabObj.on("changed", function () {
             if (syncLockRef.current) return;
             syncLockRef.current = true;
-              const textVal = this.text;
-              applyElementsUpdate(prev => prev.map(item => item.id === el.id ? { ...item, content: textVal } : item));
+            const textVal = this.text;
+            applyElementsUpdate((prev) =>
+              prev.map((item) =>
+                item.id === el.id ? { ...item, content: textVal } : item,
+              ),
+            );
             setTimeout(() => (syncLockRef.current = false), 10);
           });
         } else if (el.type === "image") {
@@ -2843,8 +2847,10 @@ const AppContent = () => {
     const sourceHandle = String(
       themeBootstrapRef.current?.productHandle || "",
     ).trim();
+
+    // Prevent path traversal, open redirect, and javascript: injection via product handle
     const safeFallbackProductUrl = sourceHandle
-      ? `/products/${sourceHandle}`
+      ? `/products/${encodeURIComponent(sourceHandle)}`
       : "/collections/all";
 
     try {
@@ -2852,10 +2858,16 @@ const AppContent = () => {
         const referrerUrl = new URL(document.referrer, window.location.origin);
         if (
           referrerUrl.origin === window.location.origin &&
+          referrerUrl.origin !== "null" &&
           referrerUrl.pathname !== window.location.pathname
         ) {
-          window.location.href = referrerUrl.href;
-          return;
+          // Construct internal URL and prevent protocol-relative bypasses
+          const internalUrl =
+            referrerUrl.pathname + referrerUrl.search + referrerUrl.hash;
+          if (internalUrl.startsWith("/") && !internalUrl.startsWith("//")) {
+            window.location.href = internalUrl;
+            return;
+          }
         }
       }
     } catch (error) {}
@@ -4877,7 +4889,12 @@ const AppContent = () => {
             <div
               id="main-canvas-container"
               onPointerDown={(e) => {
-                if ((e.target.id === "main-canvas-container" || e.target.classList.contains("upper-canvas")) && !spaceDown.current && selectedIds.length === 0) {
+                if (
+                  (e.target.id === "main-canvas-container" ||
+                    e.target.classList.contains("upper-canvas")) &&
+                  !spaceDown.current &&
+                  selectedIds.length === 0
+                ) {
                   setSelectedIds([]);
                   setShowBackgroundMenu(false);
                   setShowShapeMenu(false);
