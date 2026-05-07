@@ -1,0 +1,3 @@
+## 2024-03-08 - Hoisting Mathematical Calculations and Eliminating Intermediate Objects in `getWarpMetrics`
+**Learning:** In performance-critical sections (like the `getWarpMetrics` text transformation loop), repeatedly creating intermediate objects inside nested map/forEach chains creates massive garbage collection overhead and redundant mathematical operations (`Math.cos` and `Math.sin` applied repetitively).
+**Action:** Always inline coordinate calculations in hot paths instead of allocating arrays and objects, and hoist invariant mathematical properties (like sine and cosine values) outside of repetitive bounds checks to minimize redundant CPU cycles.
