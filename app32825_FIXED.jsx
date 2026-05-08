@@ -2361,20 +2361,29 @@ const AppContent = () => {
     GUIDE2_W = 216.5,
     GUIDE2_H = 180;
 
-  const themeBootstrapRef = useRef(getThemeBootstrap());
-  const bootBackgroundRef = useRef(
-    themeBootstrapRef.current?.background
-      ? safeClone({ ...themeBootstrapRef.current.background, locked: true })
-      : null,
-  );
-  const editorContextSignatureRef = useRef(
-    getThemeBootstrapContextSignature(themeBootstrapRef.current),
-  );
-  const projectStorageKeyRef = useRef(
-    buildProjectStorageKey(editorContextSignatureRef.current),
-  );
+  // ⚡ Bolt Performance Optimization:
+  // Use lazy initialization for refs that rely on expensive DOM operations and JSON parsing
+  // to avoid executing them on every render cycle (e.g. 60fps while dragging objects).
+  const themeBootstrapRef = useRef(null);
+  const bootBackgroundRef = useRef(null);
+  const editorContextSignatureRef = useRef(null);
+  const projectStorageKeyRef = useRef(null);
   const initialProjectRef = useRef(null);
-  if (initialProjectRef.current === null) {
+
+  const isInitialized = useRef(false);
+
+  if (!isInitialized.current) {
+    themeBootstrapRef.current = getThemeBootstrap();
+    bootBackgroundRef.current = themeBootstrapRef.current?.background
+      ? safeClone({ ...themeBootstrapRef.current.background, locked: true })
+      : null;
+    editorContextSignatureRef.current = getThemeBootstrapContextSignature(
+      themeBootstrapRef.current,
+    );
+    projectStorageKeyRef.current = buildProjectStorageKey(
+      editorContextSignatureRef.current,
+    );
+
     const loadedProject = loadValidatedProjectData(
       projectStorageKeyRef.current,
       ARTBOARD_W,
@@ -2393,6 +2402,8 @@ const AppContent = () => {
           },
         }
       : loadedProject;
+
+    isInitialized.current = true;
   }
 
   const [elements, setElements] = useState(
@@ -2739,8 +2750,12 @@ const AppContent = () => {
           fabObj.on("changed", function () {
             if (syncLockRef.current) return;
             syncLockRef.current = true;
-              const textVal = this.text;
-              applyElementsUpdate(prev => prev.map(item => item.id === el.id ? { ...item, content: textVal } : item));
+            const textVal = this.text;
+            applyElementsUpdate((prev) =>
+              prev.map((item) =>
+                item.id === el.id ? { ...item, content: textVal } : item,
+              ),
+            );
             setTimeout(() => (syncLockRef.current = false), 10);
           });
         } else if (el.type === "image") {
@@ -4877,7 +4892,12 @@ const AppContent = () => {
             <div
               id="main-canvas-container"
               onPointerDown={(e) => {
-                if ((e.target.id === "main-canvas-container" || e.target.classList.contains("upper-canvas")) && !spaceDown.current && selectedIds.length === 0) {
+                if (
+                  (e.target.id === "main-canvas-container" ||
+                    e.target.classList.contains("upper-canvas")) &&
+                  !spaceDown.current &&
+                  selectedIds.length === 0
+                ) {
                   setSelectedIds([]);
                   setShowBackgroundMenu(false);
                   setShowShapeMenu(false);
