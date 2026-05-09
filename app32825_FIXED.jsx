@@ -2843,19 +2843,27 @@ const AppContent = () => {
     const sourceHandle = String(
       themeBootstrapRef.current?.productHandle || "",
     ).trim();
+    // Sentinel: URL encode handle to prevent path traversal / open redirect
     const safeFallbackProductUrl = sourceHandle
-      ? `/products/${sourceHandle}`
+      ? `/products/${encodeURIComponent(sourceHandle)}`
       : "/collections/all";
 
     try {
       if (document.referrer) {
         const referrerUrl = new URL(document.referrer, window.location.origin);
+
+        // Sentinel: Prevent open redirect via crafted document.referrer
         if (
+          referrerUrl.origin !== "null" &&
           referrerUrl.origin === window.location.origin &&
           referrerUrl.pathname !== window.location.pathname
         ) {
-          window.location.href = referrerUrl.href;
-          return;
+          // Construct internal path securely to avoid javascript: or // attacks
+          const targetPath = referrerUrl.pathname + referrerUrl.search + referrerUrl.hash;
+          if (targetPath.startsWith("/") && !targetPath.startsWith("//")) {
+            window.location.href = targetPath;
+            return;
+          }
         }
       }
     } catch (error) {}
