@@ -438,22 +438,29 @@ const getWarpMetrics = (el) => {
     const halfW = curWidth / 2;
     const halfH = curHeight / 2;
     const rad = angle;
-    const corners = [
-      { x: -halfW, y: -halfH },
-      { x: halfW, y: -halfH },
-      { x: halfW, y: halfH },
-      { x: -halfW, y: halfH },
-    ].map((p) => ({
-      x: dx + p.x * Math.cos(rad) - p.y * Math.sin(rad),
-      y: dy + p.x * Math.sin(rad) + p.y * Math.cos(rad),
-    }));
 
-    corners.forEach((c) => {
-      if (c.x < minX) minX = c.x;
-      if (c.x > maxX) maxX = c.x;
-      if (c.y < minY) minY = c.y;
-      if (c.y > maxY) maxY = c.y;
-    });
+    // ⚡ Bolt Performance Optimization: Hoist Math.cos/Math.sin calls and eliminate
+    // intermediate array allocations to minimize redundant CPU cycles and avoid
+    // garbage collection overhead.
+    const cosRad = Math.cos(rad);
+    const sinRad = Math.sin(rad);
+
+    const c1x = dx - halfW * cosRad + halfH * sinRad;
+    const c1y = dy - halfW * sinRad - halfH * cosRad;
+
+    const c2x = dx + halfW * cosRad + halfH * sinRad;
+    const c2y = dy + halfW * sinRad - halfH * cosRad;
+
+    const c3x = dx + halfW * cosRad - halfH * sinRad;
+    const c3y = dy + halfW * sinRad + halfH * cosRad;
+
+    const c4x = dx - halfW * cosRad - halfH * sinRad;
+    const c4y = dy - halfW * sinRad + halfH * cosRad;
+
+    minX = Math.min(minX, c1x, c2x, c3x, c4x);
+    maxX = Math.max(maxX, c1x, c2x, c3x, c4x);
+    minY = Math.min(minY, c1y, c2y, c3y, c4y);
+    maxY = Math.max(maxY, c1y, c2y, c3y, c4y);
 
     return { char, dx, dy, angle, sX, sY };
   });
@@ -2739,8 +2746,12 @@ const AppContent = () => {
           fabObj.on("changed", function () {
             if (syncLockRef.current) return;
             syncLockRef.current = true;
-              const textVal = this.text;
-              applyElementsUpdate(prev => prev.map(item => item.id === el.id ? { ...item, content: textVal } : item));
+            const textVal = this.text;
+            applyElementsUpdate((prev) =>
+              prev.map((item) =>
+                item.id === el.id ? { ...item, content: textVal } : item,
+              ),
+            );
             setTimeout(() => (syncLockRef.current = false), 10);
           });
         } else if (el.type === "image") {
@@ -4877,7 +4888,12 @@ const AppContent = () => {
             <div
               id="main-canvas-container"
               onPointerDown={(e) => {
-                if ((e.target.id === "main-canvas-container" || e.target.classList.contains("upper-canvas")) && !spaceDown.current && selectedIds.length === 0) {
+                if (
+                  (e.target.id === "main-canvas-container" ||
+                    e.target.classList.contains("upper-canvas")) &&
+                  !spaceDown.current &&
+                  selectedIds.length === 0
+                ) {
                   setSelectedIds([]);
                   setShowBackgroundMenu(false);
                   setShowShapeMenu(false);
