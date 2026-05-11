@@ -1,0 +1,3 @@
+## 2024-05-19 - Interactive Button and Live Region Accessibility
+**Learning:** Icon-only buttons lacking `aria-label`s fail to convey their purpose to screen reader users, and dynamically updating numeric displays (like zoom percentage) or toasts are missed entirely without `aria-live`.
+**Action:** When adding or modifying icon-only controls (Undo, Redo, Zoom), always enforce an `aria-label` combined with visual keyboard focus styles (`focus-visible`). Ensure dynamically changing text elements (toasts, zoom spans) are decorated with `aria-live="polite"` so screen readers proactively announce their updates.
