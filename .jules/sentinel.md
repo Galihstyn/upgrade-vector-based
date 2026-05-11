@@ -1,0 +1,4 @@
+## 2025-03-09 - Fix open redirect and path traversal in internal navigation
+**Vulnerability:** The `handleBackNavigation` function was vulnerable to open redirects and path traversal due to improper validation of `document.referrer` and unsanitized `sourceHandle` input in URL paths.
+**Learning:** Checking `referrerUrl.origin === window.location.origin` is insufficient because `window.location.origin` can be `"null"` for certain URLs (like `javascript:` URIs). Also, assigning `referrerUrl.href` directly is risky; it's safer to reconstruct a relative path. Unsanitized strings in URL paths can lead to path traversal or XSS.
+**Prevention:** Always ensure `referrerUrl.origin !== "null"` when validating origins. Instead of using full URLs, reconstruct the redirect path using `pathname + search + hash` and enforce that it starts with a single `/` and not `//`. Always apply `encodeURIComponent()` when appending user-controlled variables to URL paths.
