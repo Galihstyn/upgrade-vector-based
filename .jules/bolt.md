@@ -1,0 +1,3 @@
+## 2024-05-14 - React useRef Lazy Initialization Anti-Pattern
+**Learning:** Using `useRef(expensiveFunction())` in a React component body executes `expensiveFunction()` on *every single render*, even though `useRef` only uses the argument for the initial render. This caused severe performance overhead in `App` due to repeated DOM querying and JSON parsing.
+**Action:** Use a lazy initialization pattern with a boolean ref (`const isInitialized = useRef(false); if (!isInitialized.current) { ref.current = expensiveFunction(); isInitialized.current = true; }`) for expensive initial state to keep the hot path fast.
