@@ -1,0 +1,3 @@
+## $(date +%Y-%m-%d) - Adding accessibility markup to dynamically updating UI elements
+**Learning:** When numeric displays or status toast elements are manipulated by interactive controls, they require specific ARIA attributes (`role="status"` and `aria-live="polite"`) so that screen readers can proactively announce these updates. Simple buttons only need `aria-label` and correct focus-visible styles.
+**Action:** When working on toolbars or notifications, systematically check if dynamic text updates have live region roles attached, and apply `aria-live` appropriately alongside button focus styling.
