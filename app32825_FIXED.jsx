@@ -2843,22 +2843,30 @@ const AppContent = () => {
     const sourceHandle = String(
       themeBootstrapRef.current?.productHandle || "",
     ).trim();
+    // Security: encode user-controlled parameter to prevent path traversal
     const safeFallbackProductUrl = sourceHandle
-      ? `/products/${sourceHandle}`
+      ? `/products/${encodeURIComponent(sourceHandle)}`
       : "/collections/all";
 
     try {
       if (document.referrer) {
         const referrerUrl = new URL(document.referrer, window.location.origin);
+        // Security: enforce same-origin and validate path to prevent open redirect
         if (
           referrerUrl.origin === window.location.origin &&
-          referrerUrl.pathname !== window.location.pathname
+          referrerUrl.origin !== "null" &&
+          referrerUrl.pathname !== window.location.pathname &&
+          referrerUrl.pathname.startsWith("/") &&
+          !referrerUrl.pathname.startsWith("//")
         ) {
-          window.location.href = referrerUrl.href;
+          // Reconstruct internal path strictly
+          window.location.href = `${referrerUrl.pathname}${referrerUrl.search}${referrerUrl.hash}`;
           return;
         }
       }
-    } catch (error) {}
+    } catch (error) {
+      // Ignore URL parsing errors
+    }
 
     if (window.history.length > 1) {
       window.history.back();
