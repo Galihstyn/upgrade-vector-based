@@ -1,0 +1,3 @@
+## 2024-05-15 - Lazy initialization for expensive useRef calls
+**Learning:** Using `useRef(expensiveFunction())` executes the expensive function on every re-render of the React component, which can lead to significant performance bottlenecks, especially in hot paths or when performing heavy operations like DOM queries, parsing, and deep cloning.
+**Action:** Always use the lazy initialization pattern for `useRef` with an explicit initialization guard (e.g., `const isInitialized = useRef(false); if (!isInitialized.current) { ref.current = expensiveFunction(); isInitialized.current = true; }`) to ensure expensive computations only run once during the component's lifecycle.
