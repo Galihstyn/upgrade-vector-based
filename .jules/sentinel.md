@@ -1,0 +1,4 @@
+## 2025-03-08 - Fix Open Redirect and Path Traversal in Fallback Navigation
+**Vulnerability:** Path traversal possible via user-controlled parameter concatenation (`/products/${sourceHandle}`). Open redirect possible via insufficient validation of `document.referrer` properties (checking `origin` without verifying it isn't "null", and allowing protocol-relative paths via `//` which can act as a cross-origin redirect).
+**Learning:** Hardcoded interpolations and partial URL parsing comparisons often overlook edge cases (like javascript context 'null' origins or implicit protocol-relative routes).
+**Prevention:** Always sanitize parameters placed into URL strings via `encodeURIComponent`. To restrict redirects to identical origin relative paths safely, check for `origin !== "null"`, strictly start paths with `/` and not `//`, and explicitly build the redirect destination using URL properties (`pathname + search + hash`) rather than the raw `.href`.
