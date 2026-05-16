@@ -1,0 +1,3 @@
+## 2025-02-27 - Inline Bounding Box & Trigonometry in Loops
+**Learning:** In performance-critical sections like the `getWarpMetrics` loop in `app32825_FIXED.jsx`, executing array mapping sequences (e.g. `.map().map().forEach()`) to compute and traverse corner positions creates unnecessary intermediate arrays and causes repetitive loop traversal overhead. Furthermore, recalculating identical `Math.cos()` and `Math.sin()` values repeatedly within these deep loops wastes CPU cycles.
+**Action:** Always hoist loop-invariant computations (such as trigonometric functions on the same angle) and replace unnecessary chained `.map()` or `.forEach()` array allocations with direct inline variable calculations and comparisons.
