@@ -2843,22 +2843,32 @@ const AppContent = () => {
     const sourceHandle = String(
       themeBootstrapRef.current?.productHandle || "",
     ).trim();
+
+    // SECURITY: Sanitize sourceHandle to prevent Path Traversal
     const safeFallbackProductUrl = sourceHandle
-      ? `/products/${sourceHandle}`
+      ? `/products/${encodeURIComponent(sourceHandle)}`
       : "/collections/all";
 
     try {
       if (document.referrer) {
         const referrerUrl = new URL(document.referrer, window.location.origin);
+
+        // SECURITY: Validate origin to prevent Open Redirect (ensure origin is not "null")
+        // and safely construct the redirect path to avoid protocol-relative URLs (//...)
         if (
           referrerUrl.origin === window.location.origin &&
-          referrerUrl.pathname !== window.location.pathname
+          referrerUrl.origin !== "null" &&
+          referrerUrl.pathname !== window.location.pathname &&
+          referrerUrl.pathname.startsWith("/") &&
+          !referrerUrl.pathname.startsWith("//")
         ) {
-          window.location.href = referrerUrl.href;
+          window.location.href = referrerUrl.pathname + referrerUrl.search + referrerUrl.hash;
           return;
         }
       }
-    } catch (error) {}
+    } catch (error) {
+      // SECURITY: Fail securely, ignore URL parsing errors
+    }
 
     if (window.history.length > 1) {
       window.history.back();
