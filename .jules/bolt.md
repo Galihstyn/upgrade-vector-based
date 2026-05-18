@@ -1,0 +1,3 @@
+## 2024-05-14 - Optimize getWarpMetrics calculation in hot path
+**Learning:** In canvas rendering or character-by-character transformation logic (e.g. text warping), using `.map()` and `.forEach()` to allocate object corners results in significant performance overhead due to repeated object creation and garbage collection on every render tick.
+**Action:** Unroll loops that create small ephemeral objects (like calculating bounds of 4 corners) and calculate points via direct scalar assignments (e.g. `c1x`, `c1y`, etc.). Also, always hoist loop-invariant math functions like `Math.cos()` and `Math.sin()` outside the unrolled assignments.
