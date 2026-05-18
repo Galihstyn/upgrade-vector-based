@@ -1,0 +1,4 @@
+## 2025-05-18 - [Fix Path Traversal and Open Redirect in Navigation]
+**Vulnerability:** The application was vulnerable to path traversal through `productHandle` when generating fallback URLs, and to open redirect attacks via unvalidated `document.referrer` URLs in the back navigation logic.
+**Learning:** The fallback product URL directly incorporated the `productHandle` without sanitization. The referrer-based internal redirection checked `origin` but did not validate the pathname against arbitrary internal or relative protocols, or handle "null" origins correctly.
+**Prevention:** Always use `encodeURIComponent()` to sanitize user-controlled dynamic segments in paths. For referrer-based internal redirects, validate that the origin is not `"null"`, the `origin` matches exactly, and the target path string is safely assembled using `referrerUrl.pathname + referrerUrl.search + referrerUrl.hash`, ensuring `pathname` starts with `/` and not `//`.
