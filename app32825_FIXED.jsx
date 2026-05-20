@@ -2843,22 +2843,35 @@ const AppContent = () => {
     const sourceHandle = String(
       themeBootstrapRef.current?.productHandle || "",
     ).trim();
+
+    // Security Fix: Prevent path traversal by encoding the handle
     const safeFallbackProductUrl = sourceHandle
-      ? `/products/${sourceHandle}`
+      ? `/products/${encodeURIComponent(sourceHandle)}`
       : "/collections/all";
 
     try {
       if (document.referrer) {
         const referrerUrl = new URL(document.referrer, window.location.origin);
+
+        // Security Fix:
+        // 1. Prevent open redirect by validating origin strictly and checking for "null"
+        // 2. Only use path components (pathname + search + hash) to prevent protocol-relative URL injection
         if (
           referrerUrl.origin === window.location.origin &&
+          referrerUrl.origin !== "null" &&
           referrerUrl.pathname !== window.location.pathname
         ) {
-          window.location.href = referrerUrl.href;
-          return;
+          const safeRedirectPath = referrerUrl.pathname + referrerUrl.search + referrerUrl.hash;
+          // Ensure it strictly starts with a single slash, not two (//) which is protocol-relative
+          if (safeRedirectPath.startsWith('/') && !safeRedirectPath.startsWith('//')) {
+            window.location.href = safeRedirectPath;
+            return;
+          }
         }
       }
-    } catch (error) {}
+    } catch (error) {
+      // Ignored: Invalid URL or parsing error
+    }
 
     if (window.history.length > 1) {
       window.history.back();
