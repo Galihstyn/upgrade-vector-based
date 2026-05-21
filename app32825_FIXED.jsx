@@ -2843,18 +2843,30 @@ const AppContent = () => {
     const sourceHandle = String(
       themeBootstrapRef.current?.productHandle || "",
     ).trim();
-    const safeFallbackProductUrl = sourceHandle
-      ? `/products/${sourceHandle}`
+
+    // Sentinel Security Fix: Prevent path traversal by encoding the handle
+    const encodedSourceHandle = encodeURIComponent(sourceHandle);
+
+    const safeFallbackProductUrl = encodedSourceHandle
+      ? `/products/${encodedSourceHandle}`
       : "/collections/all";
 
     try {
       if (document.referrer) {
         const referrerUrl = new URL(document.referrer, window.location.origin);
+
+        // Sentinel Security Fix: Ensure origin matches, isn't null, and only use path components for safe internal redirect
         if (
           referrerUrl.origin === window.location.origin &&
+          referrerUrl.origin !== "null" &&
           referrerUrl.pathname !== window.location.pathname
         ) {
-          window.location.href = referrerUrl.href;
+          // Use pathname, search, and hash. Ensure pathname starts with a single slash (not double)
+          let safePath = referrerUrl.pathname + referrerUrl.search + referrerUrl.hash;
+          if (safePath.startsWith("//")) {
+             safePath = "/" + safePath.replace(/^\/+/, "");
+          }
+          window.location.href = safePath;
           return;
         }
       }
