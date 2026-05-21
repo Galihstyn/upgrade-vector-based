@@ -2301,9 +2301,10 @@ const ColorEditorArea = ({
             />
             <button
               onClick={activateEyedropper}
+              aria-label="Eyedropper Tool"
               className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded text-indigo-400"
             >
-              <Pipette size={12} />
+              <Pipette size={12} aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -2739,8 +2740,12 @@ const AppContent = () => {
           fabObj.on("changed", function () {
             if (syncLockRef.current) return;
             syncLockRef.current = true;
-              const textVal = this.text;
-              applyElementsUpdate(prev => prev.map(item => item.id === el.id ? { ...item, content: textVal } : item));
+            const textVal = this.text;
+            applyElementsUpdate((prev) =>
+              prev.map((item) =>
+                item.id === el.id ? { ...item, content: textVal } : item,
+              ),
+            );
             setTimeout(() => (syncLockRef.current = false), 10);
           });
         } else if (el.type === "image") {
@@ -4415,17 +4420,19 @@ const AppContent = () => {
           onClick={undo}
           disabled={historyIndex === 0}
           title="Undo"
+          aria-label="Undo"
           className="w-8 h-8 flex items-center justify-center hover:bg-slate-700 rounded-full disabled:opacity-20 text-indigo-400 transition-all"
         >
-          <Undo2 size={16} />
+          <Undo2 size={16} aria-hidden="true" />
         </button>
         <button
           onClick={redo}
           disabled={historyIndex === history.length - 1}
           title="Redo"
+          aria-label="Redo"
           className="w-8 h-8 flex items-center justify-center hover:bg-slate-700 rounded-full disabled:opacity-20 text-indigo-400 transition-all"
         >
-          <Redo2 size={16} />
+          <Redo2 size={16} aria-hidden="true" />
         </button>
 
         <div className="h-5 w-[1.5px] bg-slate-700/50 mx-0.5" />
@@ -4433,9 +4440,10 @@ const AppContent = () => {
         <button
           onClick={() => setZoom((z) => Math.min(4, z + 0.1))}
           title="Zoom In"
+          aria-label="Zoom In"
           className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-all"
         >
-          <ZoomIn size={16} />
+          <ZoomIn size={16} aria-hidden="true" />
         </button>
         <span className="text-[10px] font-mono text-slate-300 font-bold w-9 text-center">
           {Math.round(zoom * 100)}%
@@ -4443,9 +4451,10 @@ const AppContent = () => {
         <button
           onClick={() => setZoom((z) => Math.max(0.1, z - 0.1))}
           title="Zoom Out"
+          aria-label="Zoom Out"
           className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-all"
         >
-          <ZoomOut size={16} />
+          <ZoomOut size={16} aria-hidden="true" />
         </button>
 
         <div className="h-5 w-[1.5px] bg-slate-700/50 mx-0.5" />
@@ -4877,7 +4886,12 @@ const AppContent = () => {
             <div
               id="main-canvas-container"
               onPointerDown={(e) => {
-                if ((e.target.id === "main-canvas-container" || e.target.classList.contains("upper-canvas")) && !spaceDown.current && selectedIds.length === 0) {
+                if (
+                  (e.target.id === "main-canvas-container" ||
+                    e.target.classList.contains("upper-canvas")) &&
+                  !spaceDown.current &&
+                  selectedIds.length === 0
+                ) {
                   setSelectedIds([]);
                   setShowBackgroundMenu(false);
                   setShowShapeMenu(false);
