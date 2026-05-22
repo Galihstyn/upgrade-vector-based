@@ -2843,18 +2843,24 @@ const AppContent = () => {
     const sourceHandle = String(
       themeBootstrapRef.current?.productHandle || "",
     ).trim();
+    // Security: encode sourceHandle to prevent path traversal
     const safeFallbackProductUrl = sourceHandle
-      ? `/products/${sourceHandle}`
+      ? `/products/${encodeURIComponent(sourceHandle)}`
       : "/collections/all";
 
     try {
       if (document.referrer) {
         const referrerUrl = new URL(document.referrer, window.location.origin);
         if (
+          referrerUrl.origin !== "null" &&
           referrerUrl.origin === window.location.origin &&
           referrerUrl.pathname !== window.location.pathname
         ) {
-          window.location.href = referrerUrl.href;
+          // Security: use path components and enforce single slash to prevent protocol-relative redirect
+          const safePathname = referrerUrl.pathname.startsWith('/') && !referrerUrl.pathname.startsWith('//')
+            ? referrerUrl.pathname
+            : '/' + referrerUrl.pathname.replace(/^\/+/, '');
+          window.location.href = `${safePathname}${referrerUrl.search}${referrerUrl.hash}`;
           return;
         }
       }
