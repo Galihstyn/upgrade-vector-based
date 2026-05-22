@@ -1,0 +1,3 @@
+## 2024-05-22 - Avoid intermediate array allocations in hot path calculations
+**Learning:** Performance hot paths like bounding box calculations (`getWarpMetrics`, `getElementBounds`) within React components mapping element arrays can cause a significant GC thrash from multiple inline `.map()` allocations, intermediate object generation (such as `{ x, y }` pairs from spread arrays).
+**Action:** When calculating spatial values in UI loops, hoist trigonometric evaluations, calculate corners mathematically using isolated primitives (`c1x`, `c1y`, etc.), and compare directly with `Math.min`/`Math.max` over explicitly passed primitives to save memory footprint and unroll internal iterators.
