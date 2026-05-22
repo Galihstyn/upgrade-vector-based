@@ -437,23 +437,41 @@ const getWarpMetrics = (el) => {
     const curHeight = H * sY;
     const halfW = curWidth / 2;
     const halfH = curHeight / 2;
-    const rad = angle;
-    const corners = [
-      { x: -halfW, y: -halfH },
-      { x: halfW, y: -halfH },
-      { x: halfW, y: halfH },
-      { x: -halfW, y: halfH },
-    ].map((p) => ({
-      x: dx + p.x * Math.cos(rad) - p.y * Math.sin(rad),
-      y: dy + p.x * Math.sin(rad) + p.y * Math.cos(rad),
-    }));
+    const cosRad = Math.cos(angle);
+    const sinRad = Math.sin(angle);
 
-    corners.forEach((c) => {
-      if (c.x < minX) minX = c.x;
-      if (c.x > maxX) maxX = c.x;
-      if (c.y < minY) minY = c.y;
-      if (c.y > maxY) maxY = c.y;
-    });
+    // Calculate rotated corners directly without intermediate allocations
+    const c1x = dx - halfW * cosRad + halfH * sinRad;
+    const c1y = dy - halfW * sinRad - halfH * cosRad;
+
+    const c2x = dx + halfW * cosRad + halfH * sinRad;
+    const c2y = dy + halfW * sinRad - halfH * cosRad;
+
+    const c3x = dx + halfW * cosRad - halfH * sinRad;
+    const c3y = dy + halfW * sinRad + halfH * cosRad;
+
+    const c4x = dx - halfW * cosRad - halfH * sinRad;
+    const c4y = dy - halfW * sinRad + halfH * cosRad;
+
+    if (c1x < minX) minX = c1x;
+    if (c2x < minX) minX = c2x;
+    if (c3x < minX) minX = c3x;
+    if (c4x < minX) minX = c4x;
+
+    if (c1x > maxX) maxX = c1x;
+    if (c2x > maxX) maxX = c2x;
+    if (c3x > maxX) maxX = c3x;
+    if (c4x > maxX) maxX = c4x;
+
+    if (c1y < minY) minY = c1y;
+    if (c2y < minY) minY = c2y;
+    if (c3y < minY) minY = c3y;
+    if (c4y < minY) minY = c4y;
+
+    if (c1y > maxY) maxY = c1y;
+    if (c2y > maxY) maxY = c2y;
+    if (c3y > maxY) maxY = c3y;
+    if (c4y > maxY) maxY = c4y;
 
     return { char, dx, dy, angle, sX, sY };
   });
@@ -627,6 +645,8 @@ const getVisualBounds = (el) => {
 
 const getElementBounds = (el) => {
   const rad = (safeNum(el.rotation, 0) * Math.PI) / 180;
+  const cosRad = Math.cos(rad);
+  const sinRad = Math.sin(rad);
 
   if (Array.isArray(el.customPoints) && el.customPoints.length > 1) {
     const pointBounds = getCustomPointBounds(
@@ -636,21 +656,23 @@ const getElementBounds = (el) => {
     );
     const cx = safeNum(el.x, 0) + pointBounds.centerX;
     const cy = safeNum(el.y, 0) + pointBounds.centerY;
-    const transformedPoints = pointBounds.points.map((point) => {
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+    for (let i = 0; i < pointBounds.points.length; i++) {
+      const point = pointBounds.points[i];
       const relX = point.x - pointBounds.centerX;
       const relY = point.y - pointBounds.centerY;
-      return {
-        x: cx + relX * Math.cos(rad) - relY * Math.sin(rad),
-        y: cy + relX * Math.sin(rad) + relY * Math.cos(rad),
-      };
-    });
+      const x = cx + relX * cosRad - relY * sinRad;
+      const y = cy + relX * sinRad + relY * cosRad;
 
-    return {
-      minX: Math.min(...transformedPoints.map((point) => point.x)),
-      maxX: Math.max(...transformedPoints.map((point) => point.x)),
-      minY: Math.min(...transformedPoints.map((point) => point.y)),
-      maxY: Math.max(...transformedPoints.map((point) => point.y)),
-    };
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+
+    return { minX, maxX, minY, maxY };
   }
 
   const bounds = getVisualBounds(el);
@@ -658,20 +680,27 @@ const getElementBounds = (el) => {
   const h = bounds.h;
   const cx = safeNum(el.x, 0) + w / 2;
   const cy = safeNum(el.y, 0) + h / 2;
-  const corners = [
-    { x: -w / 2, y: -h / 2 },
-    { x: w / 2, y: -h / 2 },
-    { x: w / 2, y: h / 2 },
-    { x: -w / 2, y: h / 2 },
-  ].map((point) => ({
-    x: cx + point.x * Math.cos(rad) - point.y * Math.sin(rad),
-    y: cy + point.x * Math.sin(rad) + point.y * Math.cos(rad),
-  }));
+
+  const halfW = w / 2;
+  const halfH = h / 2;
+
+  const c1x = cx - halfW * cosRad + halfH * sinRad;
+  const c1y = cy - halfW * sinRad - halfH * cosRad;
+
+  const c2x = cx + halfW * cosRad + halfH * sinRad;
+  const c2y = cy + halfW * sinRad - halfH * cosRad;
+
+  const c3x = cx + halfW * cosRad - halfH * sinRad;
+  const c3y = cy + halfW * sinRad + halfH * cosRad;
+
+  const c4x = cx - halfW * cosRad - halfH * sinRad;
+  const c4y = cy - halfW * sinRad + halfH * cosRad;
+
   return {
-    minX: Math.min(...corners.map((c) => c.x)),
-    maxX: Math.max(...corners.map((c) => c.x)),
-    minY: Math.min(...corners.map((c) => c.y)),
-    maxY: Math.max(...corners.map((c) => c.y)),
+    minX: Math.min(c1x, c2x, c3x, c4x),
+    maxX: Math.max(c1x, c2x, c3x, c4x),
+    minY: Math.min(c1y, c2y, c3y, c4y),
+    maxY: Math.max(c1y, c2y, c3y, c4y),
   };
 };
 
