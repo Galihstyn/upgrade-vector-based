@@ -1,0 +1,3 @@
+## 2024-05-23 - Lazy Initialization of Expensive Refs
+**Learning:** Using `useRef(expensiveFunction())` in a React component's body means the expensive function is executed on *every single render*, even though React only uses the result on the initial render. This is particularly problematic for functions like `getThemeBootstrap()` that query the DOM and parse URLs, causing unnecessary performance bottlenecks in hot paths.
+**Action:** Use the lazy initialization pattern for expensive operations: `const ref = useRef(null); const isInit = useRef(false); if (!isInit.current) { ref.current = expensiveFunction(); isInit.current = true; }`.
