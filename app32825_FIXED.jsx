@@ -2844,18 +2844,22 @@ const AppContent = () => {
       themeBootstrapRef.current?.productHandle || "",
     ).trim();
     const safeFallbackProductUrl = sourceHandle
-      ? `/products/${sourceHandle}`
+      ? `/products/${encodeURIComponent(sourceHandle)}`
       : "/collections/all";
 
     try {
       if (document.referrer) {
         const referrerUrl = new URL(document.referrer, window.location.origin);
         if (
+          referrerUrl.origin !== "null" &&
           referrerUrl.origin === window.location.origin &&
           referrerUrl.pathname !== window.location.pathname
         ) {
-          window.location.href = referrerUrl.href;
-          return;
+          const redirectPath = referrerUrl.pathname + referrerUrl.search + referrerUrl.hash;
+          if (redirectPath.startsWith("/") && !redirectPath.startsWith("//")) {
+            window.location.href = redirectPath;
+            return;
+          }
         }
       }
     } catch (error) {}
