@@ -2851,11 +2851,16 @@ const AppContent = () => {
       if (document.referrer) {
         const referrerUrl = new URL(document.referrer, window.location.origin);
         if (
+          referrerUrl.origin !== "null" &&
           referrerUrl.origin === window.location.origin &&
           referrerUrl.pathname !== window.location.pathname
         ) {
-          window.location.href = referrerUrl.href;
-          return;
+          // Security: Redirect safely using internal path to prevent open redirect and protocol-relative attacks
+          const internalPath = referrerUrl.pathname + referrerUrl.search + referrerUrl.hash;
+          if (internalPath.startsWith("/") && !internalPath.startsWith("//")) {
+            window.location.href = internalPath;
+            return;
+          }
         }
       }
     } catch (error) {}
