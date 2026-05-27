@@ -1,0 +1,3 @@
+## 2024-05-27 - O(N^2) Lookup Optimization in Render and Sync Loops
+**Learning:** Frequent React renders combined with array `.includes()` lookups (like `selectedIds.includes(el.id)`) on heavily populated state arrays inside `.map()` and `.filter()` operations can create hidden O(N^2) bottlenecks, leading to degraded interactive performance (UI stuttering during selection or dragging).
+**Action:** When filtering or mapping state arrays against a "selected" or "active" array of IDs, use `useMemo` to convert the active IDs array into a `Set` (e.g., `const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds])`) and use `.has(id)` for O(1) lookups, thereby reducing the operation's complexity to O(N).
