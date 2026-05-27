@@ -4415,6 +4415,7 @@ const AppContent = () => {
           onClick={undo}
           disabled={historyIndex === 0}
           title="Undo"
+          aria-label="Undo"
           className="w-8 h-8 flex items-center justify-center hover:bg-slate-700 rounded-full disabled:opacity-20 text-indigo-400 transition-all"
         >
           <Undo2 size={16} />
@@ -4423,6 +4424,7 @@ const AppContent = () => {
           onClick={redo}
           disabled={historyIndex === history.length - 1}
           title="Redo"
+          aria-label="Redo"
           className="w-8 h-8 flex items-center justify-center hover:bg-slate-700 rounded-full disabled:opacity-20 text-indigo-400 transition-all"
         >
           <Redo2 size={16} />
@@ -4433,6 +4435,7 @@ const AppContent = () => {
         <button
           onClick={() => setZoom((z) => Math.min(4, z + 0.1))}
           title="Zoom In"
+          aria-label="Zoom In"
           className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-all"
         >
           <ZoomIn size={16} />
@@ -4443,6 +4446,7 @@ const AppContent = () => {
         <button
           onClick={() => setZoom((z) => Math.max(0.1, z - 0.1))}
           title="Zoom Out"
+          aria-label="Zoom Out"
           className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-all"
         >
           <ZoomOut size={16} />
