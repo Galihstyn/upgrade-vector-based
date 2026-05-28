@@ -2287,23 +2287,29 @@ const ColorEditorArea = ({
             onColorChange={onColorChange}
           />
           <div className="flex gap-2 items-center pt-2 border-t border-slate-800">
-            <span className="text-[9px] font-mono text-slate-500 uppercase">
+            <label
+              htmlFor={`hex-input-${editId}`}
+              className="text-[9px] font-mono text-slate-500 uppercase"
+            >
               HEX
-            </span>
+            </label>
             <input
+              id={`hex-input-${editId}`}
               type="text"
               value={(activeColor || "").toUpperCase()}
               onChange={(e) => {
                 const val = e.target.value;
                 if (/^#[0-9A-F]{6}$/i.test(val)) onColorChange(val);
               }}
-              className="bg-slate-800 text-white font-mono text-[10px] px-2 py-1 rounded flex-1 outline-none focus:border-indigo-500"
+              className="bg-slate-800 text-white font-mono text-[10px] px-2 py-1 rounded flex-1 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:outline-none"
             />
             <button
               onClick={activateEyedropper}
-              className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded text-indigo-400"
+              aria-label="Pick color from screen"
+              title="Pick color from screen"
+              className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded text-indigo-400 focus-visible:ring-2 focus-visible:outline-none"
             >
-              <Pipette size={12} />
+              <Pipette size={12} aria-hidden="true" />
             </button>
           </div>
         </div>
