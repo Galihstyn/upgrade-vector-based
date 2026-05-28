@@ -1,0 +1,3 @@
+## 2025-05-28 - Color Picker Input Accessibility
+**Learning:** Purely visual labeling components (like the `<span>HEX</span>` next to color inputs in `app32825_FIXED.jsx`) are completely opaque to screen readers, and icon-only utility buttons (like the `Pipette` eyedropper) lacking `aria-label`s fail to communicate their function while generating redundant SVG readouts if `aria-hidden` is missing.
+**Action:** Always pair visible text labels with inputs using proper `<label htmlFor="...">` mapping, attach descriptive `aria-label` attributes to icon-only buttons, and apply `aria-hidden="true"` to inner decorative SVGs to ensure clean, semantic accessibility and reliable keyboard navigation focus styles.
