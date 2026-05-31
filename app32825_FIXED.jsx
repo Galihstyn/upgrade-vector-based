@@ -2852,9 +2852,12 @@ const AppContent = () => {
         const referrerUrl = new URL(document.referrer, window.location.origin);
         if (
           referrerUrl.origin === window.location.origin &&
+          referrerUrl.origin !== "null" &&
+          referrerUrl.pathname.startsWith("/") &&
+          !referrerUrl.pathname.startsWith("//") &&
           referrerUrl.pathname !== window.location.pathname
         ) {
-          window.location.href = referrerUrl.href;
+          window.location.href = referrerUrl.pathname + referrerUrl.search + referrerUrl.hash;
           return;
         }
       }
