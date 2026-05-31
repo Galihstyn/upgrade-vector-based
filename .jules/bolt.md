@@ -1,0 +1,3 @@
+## 2025-05-31 - Memoizing frequent Array.includes inside loops with Set.has
+**Learning:** In React components managing complex states like an array of elements (such as `app32825_FIXED.jsx`), it is a common anti-pattern to use `Array.prototype.includes` inside iterative operations (`map`, `filter`, `reduce`) to check for the presence of an element (like checking if an element is selected). This leads to $O(N^2)$ time complexity.
+**Action:** Always memoize the array of IDs or frequent lookup values into a `Set` using `useMemo`, and replace `.includes()` checks with `.has()`, which provides $O(1)$ lookup time and drops the complexity down to $O(N)$.
