@@ -1,0 +1,4 @@
+## 2024-05-18 - Open Redirect via document.referrer
+**Vulnerability:** Open redirect vulnerability via `document.referrer` during back navigation fallback in `handleBackNavigation`.
+**Learning:** Checking `referrerUrl.origin === window.location.origin` is insufficient because the origin of `javascript:` URIs can be `"null"`. Additionally, using `referrerUrl.href` could enable redirects to protocol-relative URLs (`//malicious.com`). URL parameters interpolated into fallback paths were missing proper URI encoding (`encodeURIComponent`), posing injection risks.
+**Prevention:** To securely implement internal redirects via `document.referrer`: 1. verify `origin === window.location.origin` AND `origin !== "null"`. 2. Only redirect using the path components (`pathname + search + hash`), explicitly validating that `pathname` starts with a single `/` and NOT `//`. 3. Always sanitize URL parameters mapped to internal paths using `encodeURIComponent()`.
