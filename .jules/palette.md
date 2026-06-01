@@ -1,0 +1,3 @@
+## 2024-06-01 - Top utility panel buttons accessibility
+**Learning:** Icon-only buttons relying purely on `title` attributes are not sufficiently accessible. Adding `aria-label` ensures screen readers can identify the button. Setting `aria-hidden="true"` on the internal SVG icon prevents redundant or confusing screen reader announcements. Finally, keyboard navigability is essential for accessibility; focus states (`focus-visible:ring-2`, `focus-visible:outline-none`) must be added to visually indicate when an element has keyboard focus.
+**Action:** When creating or modifying icon-only buttons, always ensure they have an `aria-label`, explicitly hide the inner SVG with `aria-hidden="true"`, and include `focus-visible` styles for keyboard navigation.
