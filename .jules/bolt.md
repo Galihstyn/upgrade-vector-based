@@ -1,0 +1,3 @@
+## 2024-05-19 - Optimize Array Lookups in Hot Paths
+**Learning:** Found O(N^2) complexity bottlenecks in the Fabric.js synchronization `useEffect` and multiple array filters for `selectedIds` caused by repeatedly calling `.includes()` on arrays (O(N) operation per lookup). Because this happens on every canvas interaction, it leads to noticeable input lag.
+**Action:** Use `Set` to track selected elements and synchronize IDs, converting O(N) `.includes()` checks into O(1) `.has()` checks. Memoize the Set using `useMemo` when derived from React state to avoid recalculating the hashmap when unmodified.
