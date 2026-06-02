@@ -1,0 +1,4 @@
+## 2024-06-02 - Fix Open Redirect and Path Traversal in `handleBackNavigation`
+**Vulnerability:** The `handleBackNavigation` in `app32825_FIXED.jsx` dynamically creates a back link based on a URL parameter/bootstrap string `sourceHandle` injected into a path (`/products/${sourceHandle}`). It did not URL encode it. In addition, it allowed open redirects from `document.referrer` by blindly trusting it even with issues like protocol relative links or `javascript:` links from `null` origin.
+**Learning:** URL parameters or variables mapping to routes should be safely encoded using `encodeURIComponent` to prevent directory traversal attacks. In addition, blind redirection via referrers must strictly test for valid relative paths matching current origin.
+**Prevention:** Always encode user provided params mapped to routes via `encodeURIComponent()`, and for referral links, explicitly reconstruct the route path via `new URL()` checking the origin.
