@@ -1,0 +1,3 @@
+## 2024-06-02 - Accessible Top Utility Buttons in App Canvas
+**Learning:** In complex canvas-based editing applications, the utility toolbar often uses icon-only buttons for concise space management. However, many components in `app32825_FIXED.jsx` were missing ARIA labels or focus indicators, which heavily limited their usability for keyboard and screen reader users. The specific lack of `focus-visible` styling means keyboard users might get lost while navigating through tools.
+**Action:** Always verify icon-only interactive controls. Ensure they have an `aria-label`, the SVG icon itself is hidden from screen readers using `aria-hidden="true"`, and the element provides distinct keyboard focus states using classes like `focus-visible:ring-2 focus-visible:outline-none`.
