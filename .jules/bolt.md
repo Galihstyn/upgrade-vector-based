@@ -1,0 +1,3 @@
+## 2025-06-04 - Optimize React useRef Expensive Initializations
+**Learning:** In `app32825_FIXED.jsx`, `useRef` was being called with expensive functions like DOM queries (`getThemeBootstrap()`) and object cloning directly in the render path. Because React executes the arguments passed to `useRef` on every render (even though the value is ignored after the initial render), this created a significant performance bottleneck in the massive `AppContent` component.
+**Action:** When initializing `useRef` with expensive operations, always use the lazy initialization pattern. Either use a `useState` with a lazy initializer function `() => expensiveCall()` or use an explicit boolean guard ref (e.g. `isInitialized.current = true`) to ensure the expensive operation only runs once.
