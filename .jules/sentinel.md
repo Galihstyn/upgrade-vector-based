@@ -1,0 +1,4 @@
+## 2025-06-06 - Path Traversal in Fallback Navigation
+**Vulnerability:** The application was constructing a redirect URL using `const safeFallbackProductUrl = sourceHandle ? \`/products/${sourceHandle}\` : "/collections/all";`, directly interpolating the user/system-provided `sourceHandle` variable without sanitization.
+**Learning:** Even internal tracking variables like product handles can be abused if they are interpolated directly into URLs for redirection. An attacker could potentially inject `../` sequences to redirect a user to a completely different part of the site, or inject special characters that break the URL parsing or lead to unintended actions.
+**Prevention:** Always use `encodeURIComponent()` when interpolating any external or variable string into a URL path or query parameter.
