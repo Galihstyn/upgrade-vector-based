@@ -2844,7 +2844,7 @@ const AppContent = () => {
       themeBootstrapRef.current?.productHandle || "",
     ).trim();
     const safeFallbackProductUrl = sourceHandle
-      ? `/products/${sourceHandle}`
+      ? `/products/${encodeURIComponent(sourceHandle)}`
       : "/collections/all";
 
     try {
