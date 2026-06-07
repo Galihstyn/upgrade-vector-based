@@ -1,0 +1,3 @@
+## 2024-06-07 - Accessibility of Utility Panel Actions
+**Learning:** Icon-only buttons for critical actions like Undo, Redo, and Zoom controls in the main utility panel lack accessible names (aria-label) and clear keyboard focus indicators, violating basic accessibility principles for interactive controls. Also, dynamic text updates like the zoom percentage change are not announced to screen readers.
+**Action:** Always apply `aria-label`, visible focus classes (e.g., `focus-visible:ring-2`), and `aria-hidden="true"` on inner icons for icon-only buttons. Add `aria-live="polite"` for text that updates dynamically on user interaction.
