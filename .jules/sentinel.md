@@ -1,0 +1,4 @@
+## 2024-06-08 - Fix path traversal and open redirect in back navigation
+**Vulnerability:** The application used unencoded user input (`sourceHandle` derived from potentially controllable `productHandle`) in a relative URL (`/products/${sourceHandle}`) assigned directly to `window.location.href` for back navigation.
+**Learning:** This exposes the application to path traversal or open redirect if an attacker manipulated `sourceHandle` to contain values like `../` or a fully qualified URL starting with `//` (since `window.location.href = "/products/../other-path"` resolves contextually). Using `slugify` may mitigate some characters, but explicit URI encoding is safer.
+**Prevention:** Always use `encodeURIComponent()` when interpolating dynamic data into URL paths to ensure they remain as single path segments and not actionable URL syntax.
