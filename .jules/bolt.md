@@ -1,0 +1,3 @@
+## 2024-06-09 - Avoid useRef(expensiveFunction())
+**Learning:** Initializing `useRef` directly with an expensive function call (e.g., `useRef(expensiveFunction())`) causes the function to execute on *every single render*, even though `useRef` only uses the initial value once. This leads to severe performance degradation if the function involves DOM manipulation, parsing, or heavy computation.
+**Action:** Always use a lazy initialization pattern with a boolean guard (e.g., `const isInitialized = useRef(false); if (!isInitialized.current) { ref.current = expensiveFunction(); isInitialized.current = true; }`) for expensive `useRef` initializations in hot paths like large Canvas applications.
