@@ -2361,27 +2361,34 @@ const AppContent = () => {
     GUIDE2_W = 216.5,
     GUIDE2_H = 180;
 
-  const themeBootstrapRef = useRef(getThemeBootstrap());
-  const bootBackgroundRef = useRef(
-    themeBootstrapRef.current?.background
-      ? safeClone({ ...themeBootstrapRef.current.background, locked: true })
-      : null,
-  );
-  const editorContextSignatureRef = useRef(
-    getThemeBootstrapContextSignature(themeBootstrapRef.current),
-  );
-  const projectStorageKeyRef = useRef(
-    buildProjectStorageKey(editorContextSignatureRef.current),
-  );
+  const isInitialized = useRef(false);
+  const themeBootstrapRef = useRef(null);
+  const bootBackgroundRef = useRef(null);
+  const editorContextSignatureRef = useRef(null);
+  const projectStorageKeyRef = useRef(null);
   const initialProjectRef = useRef(null);
-  if (initialProjectRef.current === null) {
+
+  if (!isInitialized.current) {
+    const bootstrap = getThemeBootstrap();
+    themeBootstrapRef.current = bootstrap;
+
+    bootBackgroundRef.current = bootstrap?.background
+      ? safeClone({ ...bootstrap.background, locked: true })
+      : null;
+
+    const signature = getThemeBootstrapContextSignature(bootstrap);
+    editorContextSignatureRef.current = signature;
+
+    const storageKey = buildProjectStorageKey(signature);
+    projectStorageKeyRef.current = storageKey;
+
     const loadedProject = loadValidatedProjectData(
-      projectStorageKeyRef.current,
+      storageKey,
       ARTBOARD_W,
       ARTBOARD_H,
-      editorContextSignatureRef.current,
+      signature,
     );
-    const bootBackground = themeBootstrapRef.current?.background;
+    const bootBackground = bootstrap?.background;
 
     initialProjectRef.current = bootBackground
       ? {
@@ -2393,6 +2400,8 @@ const AppContent = () => {
           },
         }
       : loadedProject;
+
+    isInitialized.current = true;
   }
 
   const [elements, setElements] = useState(
