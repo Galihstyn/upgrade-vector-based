@@ -1,0 +1,3 @@
+## 2024-06-10 - Utility Bar Icon Button Accessibility
+**Learning:** Icon-only buttons in utility bars (like zoom and undo/redo controls) without ARIA labels or hidden icons fail screen reader compliance and can cause a jarring experience if raw SVGs are announced.
+**Action:** Always add `aria-label` to the parent `<button>`, `aria-hidden="true"` to the inner SVG icon, and apply `focus-visible` styles (`focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none`) to ensure keyboard users have visual feedback. Additionally, dynamically updating text (like zoom percentage) needs `aria-live="polite"` to correctly announce state changes.
