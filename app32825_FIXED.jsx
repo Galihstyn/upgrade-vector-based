@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { fabric } from "fabric";
 import {
   Type,
@@ -2399,6 +2399,8 @@ const AppContent = () => {
     () => initialProjectRef.current.elements,
   );
   const [selectedIds, setSelectedIds] = useState([]);
+  // Optimize: selectedIds lookups are O(n). By memoizing it into a Set, we reduce lookup complexity to O(1) in tight loops.
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const [activeTab, setActiveTab] = useState("props");
   const [activeTool, setActiveTool] = useState("select");
   const [zoom, setZoom] = useState(0.8);
@@ -2670,7 +2672,7 @@ const AppContent = () => {
 
     elements.forEach((el, index) => {
       let fabObj = existingObjects[el.id];
-      const isSelected = selectedIds.includes(el.id);
+      const isSelected = selectedSet.has(el.id);
 
       const commonProps = {
         id: el.id,
@@ -3603,7 +3605,6 @@ const AppContent = () => {
     };
 
     applyElementsUpdate((prev) => {
-      const selectedSet = new Set(selectedIds);
       const insertionIndex = prev.reduce((count, currentEl, index) => {
         if (index >= elements.indexOf(frontEl)) return count;
         return selectedSet.has(currentEl.id) ? count : count + 1;
@@ -3620,7 +3621,7 @@ const AppContent = () => {
 
     applyElementsUpdate((prevElements) => {
       const selectedEls = prevElements.filter(
-        (el) => selectedIds.includes(el.id) && !el.locked,
+        (el) => selectedSet.has(el.id) && !el.locked,
       );
       if (selectedEls.length < 2) return prevElements;
 
@@ -3641,7 +3642,7 @@ const AppContent = () => {
       const globalCenterY = (globalMinY + globalMaxY) / 2;
 
       return prevElements.map((el) => {
-        if (!selectedIds.includes(el.id) || el.locked) return el;
+        if (!selectedSet.has(el.id) || el.locked) return el;
 
         const b = getElementBounds(el);
         const cx = (b.minX + b.maxX) / 2;
@@ -4360,7 +4361,7 @@ const AppContent = () => {
       if (e.key === "Delete" || e.key === "Backspace") {
         if (selectedIds.length > 0) {
           applyElementsUpdate((prev) =>
-            prev.filter((el) => !selectedIds.includes(el.id)),
+            prev.filter((el) => !selectedSet.has(el.id)),
           );
           setSelectedIds([]);
         }
@@ -4456,7 +4457,7 @@ const AppContent = () => {
             setShowBackgroundMenu(false);
             if (selectedIds.length === 0) return;
             applyElementsUpdate((prev) =>
-              prev.filter((el) => !selectedIds.includes(el.id)),
+              prev.filter((el) => !selectedSet.has(el.id)),
             );
             setSelectedIds([]);
             setIsBottomPanelOpen(false);
@@ -5484,7 +5485,7 @@ const AppContent = () => {
                             );
                           } else setSelectedIds([el.id]);
                         }}
-                        className={`flex items-center justify-between gap-3 p-3 rounded-xl cursor-pointer border transition-all ${selectedIds.includes(el.id) ? "bg-indigo-500/10 border-indigo-500/50" : "bg-slate-900/50 border-slate-800 hover:border-slate-700"}`}
+                        className={`flex items-center justify-between gap-3 p-3 rounded-xl cursor-pointer border transition-all ${selectedSet.has(el.id) ? "bg-indigo-500/10 border-indigo-500/50" : "bg-slate-900/50 border-slate-800 hover:border-slate-700"}`}
                       >
                         <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 shrink-0">
                           {el.type === "text" ? (
