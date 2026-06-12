@@ -1,0 +1,3 @@
+## 2025-06-12 - Caching Math operations and avoiding allocations in hot paths
+**Learning:** React component re-rendering and loops can call layout and bounding calculation functions like `getElementBounds` millions of times per minute. Using intermediate array methods like `.map` to create new point objects, and recalculating the same Trigonometric functions (`Math.sin`, `Math.cos`), cause high memory pressure and processing overhead.
+**Action:** When implementing mathematical bounding calculations on canvas objects, directly calculate scalar coordinates instead of using array methods/allocations, and cache calculations invariant to the loop (like trigonometric functions based on angle).
