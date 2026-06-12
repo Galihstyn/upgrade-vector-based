@@ -1,0 +1,3 @@
+## 2024-06-12 - Utility Panel Accessibility
+**Learning:** The utility buttons (Undo, Redo, Zoom In, Zoom Out) in the top panel were missing screen-reader accessible labels and had redundant icon announcements. Additionally, dynamic state (zoom percentage) was not polite-announced.
+**Action:** When adding accessibility to utility toolbars in this React application, ensure every icon-only button receives an explicit `aria-label`, the inner SVG has `aria-hidden="true"`, and keyboard focus remains visible via Tailwind (`focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none`). For dynamically updating text (like zoom percent), always apply `aria-live="polite"`.
