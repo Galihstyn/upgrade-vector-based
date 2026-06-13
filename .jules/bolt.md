@@ -1,0 +1,3 @@
+## 2024-06-13 - Optimize element selection check
+**Learning:** Checking array inclusion (`selectedIds.includes(el.id)`) inside tight loops like `.map()`, `.filter()`, and `.forEach()` in React components creates an $O(N \times M)$ performance bottleneck, especially for operations involving multiple elements.
+**Action:** Use `useMemo` to memoize the array as a `Set` (e.g., `const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);`) and replace `.includes()` with `.has()` to reduce lookup complexity to $O(1)$, resulting in $O(N)$ total iteration time. Ensure the memoized set is defined high enough in the component scope to be accessible by all relevant hooks and handlers.
