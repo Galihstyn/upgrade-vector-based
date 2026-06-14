@@ -1,0 +1,3 @@
+## 2025-03-01 - O(1) Selected Lookups using useMemo Set
+**Learning:** React component re-renders that include heavy Array `.includes()` checks inside `.map` and `.filter` loops degrade performance, specifically when interacting with Canvas selections. Transforming `selectedIds.includes()` to a memoized `Set.has()` reduces the lookup complexity to O(1) and eliminates frame drops when selecting/moving multiple layers.
+**Action:** When working with selected item states, apply a `useMemo(() => new Set(ids), [ids])` pattern instead of running `.includes()` dynamically inside mapping iterations or array updates.
