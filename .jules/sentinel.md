@@ -1,0 +1,4 @@
+## 2026-06-14 - Fix Path Traversal and Open Redirect via Product Handle
+**Vulnerability:** User input (`productHandle` from theme bootstrap configuration or query parameters) was directly interpolated into a URL path (`/products/${sourceHandle}`) and set to `window.location.href` without sanitization. This allowed attackers to craft URLs with path traversal payloads (e.g., `../../`) or open redirects to external sites if combined with certain configurations.
+**Learning:** React's built-in protections against XSS do not apply when directly assigning values to `window.location.href` or other raw DOM sinks. Input derived from query parameters or external configuration must be treated as untrusted and properly encoded before interpolation into URLs.
+**Prevention:** Always use `encodeURIComponent()` when interpolating dynamic, untrusted values into URL paths or query string parameters to ensure they are treated as data, not as path segments or scheme identifiers.
