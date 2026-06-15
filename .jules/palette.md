@@ -1,0 +1,3 @@
+## 2024-05-24 - Missing ARIA Labels and Focus States on Utility Toolbar Icons
+**Learning:** The utility toolbar at the top of the interface contained several icon-only buttons (Undo, Redo, Zoom In, Zoom Out) that lacked proper ARIA labels, `aria-hidden="true"` on the SVGs, and keyboard focus states. This makes navigation difficult for screen reader users and keyboard-only users.
+**Action:** Always add `aria-label` to icon-only buttons, set `aria-hidden="true"` on inner `<svg>` components, and apply focus styles (e.g., `focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none`) to ensure keyboard accessibility.
