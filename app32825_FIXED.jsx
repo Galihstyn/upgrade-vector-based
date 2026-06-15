@@ -2843,8 +2843,9 @@ const AppContent = () => {
     const sourceHandle = String(
       themeBootstrapRef.current?.productHandle || "",
     ).trim();
+    // Security Fix: Prevent path traversal by sanitizing the handle in the URL string
     const safeFallbackProductUrl = sourceHandle
-      ? `/products/${sourceHandle}`
+      ? `/products/${encodeURIComponent(sourceHandle)}`
       : "/collections/all";
 
     try {
