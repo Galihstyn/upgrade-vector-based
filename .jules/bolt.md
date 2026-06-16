@@ -1,0 +1,3 @@
+## 2024-05-30 - O(1) set lookups in React state setters
+**Learning:** When optimizing state array lookups with a memoized Set (like `selectedSet` for `selectedIds`), you should not substitute `prev.includes()` with `Set.has()` inside React state setter callbacks (e.g., `setSelectedIds((prev) => ...)`). The memoized Set is a closure variable that may be stale during batched or queued updates, whereas `prev` provides the guaranteed up-to-date state. Using the closure variable defeats the purpose of functional state updates and can lead to bugs.
+**Action:** Retain `prev.includes()` inside state setter callbacks even when an optimized Set is available in the component body.
