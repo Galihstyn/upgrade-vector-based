@@ -1,0 +1,3 @@
+## 2024-06-16 - Make utility panel buttons accessible
+**Learning:** Icon-only buttons for critical actions like Undo, Redo, Zoom In, Zoom Out lack screen reader text and visible focus states, meaning keyboard and screen reader users can miss out on these essential tools.
+**Action:** Always wrap SVGs in `<button aria-label="Action Name">` and add `aria-hidden="true"` to the inner SVG icon so screen readers announce the button purpose correctly. Add keyboard focus styling (`focus-visible:ring-2`, etc.) to make keyboard navigation apparent. Additionally, for dynamically changing status text (like zoom percentage), add `aria-live="polite"` so screen readers proactively announce the changed value.
