@@ -1,0 +1,3 @@
+## 2025-02-28 - Improving Accessibility for Zoom Feedback Readouts
+**Learning:** Screen readers won't automatically read dynamic UI updates like the Zoom % changes when users click "Zoom In" or "Zoom Out" unless explicitly instructed.
+**Action:** When updating numeric counters or feedback text span dynamically (e.g., zoom level), always apply `aria-live="polite"` so screen readers will announce the value updates natively without interfering with current reading tasks. Furthermore, always set `aria-hidden="true"` on inner SVG element content for icon-only buttons so standard `aria-label` text announces cleanly.
