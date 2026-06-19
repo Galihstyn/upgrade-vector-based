@@ -1,0 +1,3 @@
+## 2024-06-19 - Accessible Toolbars
+**Learning:** Toolbars in this application with dynamic state and icon-only buttons need proper screen reader attributes (`aria-label`, `aria-hidden` on icons) and dynamic state announcement (`aria-live="polite"`) for smooth UX without overwhelming the user during frequent changes like zooming. Keyboard focus states (`focus-visible`) are critical for navigation visibility.
+**Action:** Always add `aria-live="polite"` to dynamically updated UI values (e.g. zoom percentages) in interactive canvas applications, apply `aria-hidden="true"` to inner SVG icons of buttons with `aria-label`, and ensure `focus-visible:ring-2` is set for focus rings.
