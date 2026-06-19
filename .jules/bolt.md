@@ -1,0 +1,3 @@
+## 2024-06-19 - Optimize Layout Bounds Array Allocations
+**Learning:** During mathematical bounds calculations inside `app32825_FIXED.jsx` (`getWarpMetrics` and `getElementBounds`), intermediate arrays were unnecessarily allocated by chaining `.map()` and using `...spread` operators over arrays in highly recursive/rendering-sensitive calculation paths.
+**Action:** When implementing geometric loop-bounds, refactor to single pre-allocated iteration loops or `for` loops updating in-place tracking variables (e.g. `minX`, `minY`) rather than mapping array copies, reducing unnecessary garbage collector (GC) load in hot render pathways.
