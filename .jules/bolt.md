@@ -1,0 +1,3 @@
+## 2024-06-20 - Memoizing array into Set for O(1) lookups in React loops
+**Learning:** Using `array.includes()` inside loops or `.filter` in React render passes can create an O(N*M) bottleneck. However, if optimizing state array lookups with a memoized Set (like `selectedSet` for `selectedIds`), avoid substituting `prev.includes()` with `Set.has()` inside React state setter callbacks (e.g., `setSelectedIds((prev) => ...)`). The memoized Set is a closure variable that may be stale, whereas `prev` provides the guaranteed up-to-date state.
+**Action:** Memoize large or frequently accessed state arrays into Sets using `useMemo` for O(1) lookups in render passes, but retain `prev` inside state setter callbacks.
