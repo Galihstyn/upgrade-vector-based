@@ -523,10 +523,16 @@ const getCustomPointBounds = (
     };
   }
 
-  const minX = Math.min(...points.map((point) => point.x));
-  const maxX = Math.max(...points.map((point) => point.x));
-  const minY = Math.min(...points.map((point) => point.y));
-  const maxY = Math.max(...points.map((point) => point.y));
+  // ⚡ Bolt Optimization: Use single-pass for-loop instead of Math.min/max with spread
+  // to prevent intermediate array allocations and "Maximum call stack size exceeded" errors
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < points.length; i++) {
+    const point = points[i];
+    if (point.x < minX) minX = point.x;
+    if (point.x > maxX) maxX = point.x;
+    if (point.y < minY) minY = point.y;
+    if (point.y > maxY) maxY = point.y;
+  }
   const width = Math.max(10, maxX - minX);
   const height = Math.max(10, maxY - minY);
 
@@ -627,6 +633,9 @@ const getVisualBounds = (el) => {
 
 const getElementBounds = (el) => {
   const rad = (safeNum(el.rotation, 0) * Math.PI) / 180;
+  // ⚡ Bolt Optimization: Hoist loop-invariant calculations
+  const cosRad = Math.cos(rad);
+  const sinRad = Math.sin(rad);
 
   if (Array.isArray(el.customPoints) && el.customPoints.length > 1) {
     const pointBounds = getCustomPointBounds(
@@ -636,21 +645,23 @@ const getElementBounds = (el) => {
     );
     const cx = safeNum(el.x, 0) + pointBounds.centerX;
     const cy = safeNum(el.y, 0) + pointBounds.centerY;
-    const transformedPoints = pointBounds.points.map((point) => {
+
+    // ⚡ Bolt Optimization: Replace map+spread with loop to avoid GC pressure
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (let i = 0; i < pointBounds.points.length; i++) {
+      const point = pointBounds.points[i];
       const relX = point.x - pointBounds.centerX;
       const relY = point.y - pointBounds.centerY;
-      return {
-        x: cx + relX * Math.cos(rad) - relY * Math.sin(rad),
-        y: cy + relX * Math.sin(rad) + relY * Math.cos(rad),
-      };
-    });
+      const tx = cx + relX * cosRad - relY * sinRad;
+      const ty = cy + relX * sinRad + relY * cosRad;
 
-    return {
-      minX: Math.min(...transformedPoints.map((point) => point.x)),
-      maxX: Math.max(...transformedPoints.map((point) => point.x)),
-      minY: Math.min(...transformedPoints.map((point) => point.y)),
-      maxY: Math.max(...transformedPoints.map((point) => point.y)),
-    };
+      if (tx < minX) minX = tx;
+      if (tx > maxX) maxX = tx;
+      if (ty < minY) minY = ty;
+      if (ty > maxY) maxY = ty;
+    }
+
+    return { minX, maxX, minY, maxY };
   }
 
   const bounds = getVisualBounds(el);
@@ -658,21 +669,28 @@ const getElementBounds = (el) => {
   const h = bounds.h;
   const cx = safeNum(el.x, 0) + w / 2;
   const cy = safeNum(el.y, 0) + h / 2;
-  const corners = [
+
+  const cornerPoints = [
     { x: -w / 2, y: -h / 2 },
     { x: w / 2, y: -h / 2 },
     { x: w / 2, y: h / 2 },
     { x: -w / 2, y: h / 2 },
-  ].map((point) => ({
-    x: cx + point.x * Math.cos(rad) - point.y * Math.sin(rad),
-    y: cy + point.x * Math.sin(rad) + point.y * Math.cos(rad),
-  }));
-  return {
-    minX: Math.min(...corners.map((c) => c.x)),
-    maxX: Math.max(...corners.map((c) => c.x)),
-    minY: Math.min(...corners.map((c) => c.y)),
-    maxY: Math.max(...corners.map((c) => c.y)),
-  };
+  ];
+
+  // ⚡ Bolt Optimization: Use loop to calculate corner bounds safely
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < cornerPoints.length; i++) {
+    const point = cornerPoints[i];
+    const tx = cx + point.x * cosRad - point.y * sinRad;
+    const ty = cy + point.x * sinRad + point.y * cosRad;
+
+    if (tx < minX) minX = tx;
+    if (tx > maxX) maxX = tx;
+    if (ty < minY) minY = ty;
+    if (ty > maxY) maxY = ty;
+  }
+
+  return { minX, maxX, minY, maxY };
 };
 
 const getStarPath = (w, h, points = 5, innerScale = 0.5) => {
