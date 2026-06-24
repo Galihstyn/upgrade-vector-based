@@ -1,0 +1,3 @@
+## 2025-02-12 - Optimize geometric bounds calculations and array limits
+**Learning:** Using spread syntax `Math.min(...array)` over potentially large coordinate arrays can trigger 'Maximum call stack size exceeded' errors in JS. Using `.map()` inside geometric functions generates intermediate arrays leading to GC pressure, and math functions (like `Math.cos`) are unnecessarily evaluated per point instead of being hoisted.
+**Action:** Use standard `for` loops for min/max tracking, and hoist `Math.cos`/`Math.sin` inside `getElementBounds` and `getWarpMetrics` to prevent stack limits and minimize runtime allocations.
