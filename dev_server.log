@@ -1,0 +1,10 @@
+
+> @ dev /app
+> vite
+
+
+  VITE v8.1.0  ready in 434 ms
+
+  ➜  Local:   http://localhost:3000/
+  ➜  Network: http://192.168.0.2:3000/
+10:05:31 AM [vite] (client) [optimizer] bundling dependencies...
