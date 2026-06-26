@@ -438,22 +438,27 @@ const getWarpMetrics = (el) => {
     const halfW = curWidth / 2;
     const halfH = curHeight / 2;
     const rad = angle;
-    const corners = [
+
+    const cosRad = Math.cos(rad);
+    const sinRad = Math.sin(rad);
+
+    const baseCorners = [
       { x: -halfW, y: -halfH },
       { x: halfW, y: -halfH },
       { x: halfW, y: halfH },
       { x: -halfW, y: halfH },
-    ].map((p) => ({
-      x: dx + p.x * Math.cos(rad) - p.y * Math.sin(rad),
-      y: dy + p.x * Math.sin(rad) + p.y * Math.cos(rad),
-    }));
+    ];
 
-    corners.forEach((c) => {
-      if (c.x < minX) minX = c.x;
-      if (c.x > maxX) maxX = c.x;
-      if (c.y < minY) minY = c.y;
-      if (c.y > maxY) maxY = c.y;
-    });
+    for (let i = 0; i < baseCorners.length; i++) {
+      const p = baseCorners[i];
+      const cx = dx + p.x * cosRad - p.y * sinRad;
+      const cy = dy + p.x * sinRad + p.y * cosRad;
+
+      if (cx < minX) minX = cx;
+      if (cx > maxX) maxX = cx;
+      if (cy < minY) minY = cy;
+      if (cy > maxY) maxY = cy;
+    }
 
     return { char, dx, dy, angle, sX, sY };
   });
@@ -523,10 +528,19 @@ const getCustomPointBounds = (
     };
   }
 
-  const minX = Math.min(...points.map((point) => point.x));
-  const maxX = Math.max(...points.map((point) => point.x));
-  const minY = Math.min(...points.map((point) => point.y));
-  const maxY = Math.max(...points.map((point) => point.y));
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
+  }
+
   const width = Math.max(10, maxX - minX);
   const height = Math.max(10, maxY - minY);
 
@@ -636,21 +650,29 @@ const getElementBounds = (el) => {
     );
     const cx = safeNum(el.x, 0) + pointBounds.centerX;
     const cy = safeNum(el.y, 0) + pointBounds.centerY;
-    const transformedPoints = pointBounds.points.map((point) => {
+    const cosRad = Math.cos(rad);
+    const sinRad = Math.sin(rad);
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    for (let i = 0; i < pointBounds.points.length; i++) {
+      const point = pointBounds.points[i];
       const relX = point.x - pointBounds.centerX;
       const relY = point.y - pointBounds.centerY;
-      return {
-        x: cx + relX * Math.cos(rad) - relY * Math.sin(rad),
-        y: cy + relX * Math.sin(rad) + relY * Math.cos(rad),
-      };
-    });
 
-    return {
-      minX: Math.min(...transformedPoints.map((point) => point.x)),
-      maxX: Math.max(...transformedPoints.map((point) => point.x)),
-      minY: Math.min(...transformedPoints.map((point) => point.y)),
-      maxY: Math.max(...transformedPoints.map((point) => point.y)),
-    };
+      const x = cx + relX * cosRad - relY * sinRad;
+      const y = cy + relX * sinRad + relY * cosRad;
+
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+
+    return { minX, maxX, minY, maxY };
   }
 
   const bounds = getVisualBounds(el);
@@ -658,21 +680,33 @@ const getElementBounds = (el) => {
   const h = bounds.h;
   const cx = safeNum(el.x, 0) + w / 2;
   const cy = safeNum(el.y, 0) + h / 2;
-  const corners = [
+  const cosRad = Math.cos(rad);
+  const sinRad = Math.sin(rad);
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+
+  const baseCorners = [
     { x: -w / 2, y: -h / 2 },
     { x: w / 2, y: -h / 2 },
     { x: w / 2, y: h / 2 },
     { x: -w / 2, y: h / 2 },
-  ].map((point) => ({
-    x: cx + point.x * Math.cos(rad) - point.y * Math.sin(rad),
-    y: cy + point.x * Math.sin(rad) + point.y * Math.cos(rad),
-  }));
-  return {
-    minX: Math.min(...corners.map((c) => c.x)),
-    maxX: Math.max(...corners.map((c) => c.x)),
-    minY: Math.min(...corners.map((c) => c.y)),
-    maxY: Math.max(...corners.map((c) => c.y)),
-  };
+  ];
+
+  for (let i = 0; i < baseCorners.length; i++) {
+    const point = baseCorners[i];
+    const x = cx + point.x * cosRad - point.y * sinRad;
+    const y = cy + point.x * sinRad + point.y * cosRad;
+
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+
+  return { minX, maxX, minY, maxY };
 };
 
 const getStarPath = (w, h, points = 5, innerScale = 0.5) => {
