@@ -4437,7 +4437,7 @@ const AppContent = () => {
         >
           <ZoomIn size={16} />
         </button>
-        <span className="text-[10px] font-mono text-slate-300 font-bold w-9 text-center">
+        <span aria-live="polite" className="text-[10px] font-mono text-slate-300 font-bold w-9 text-center">
           {Math.round(zoom * 100)}%
         </span>
         <button
