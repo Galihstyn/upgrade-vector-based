@@ -523,10 +523,21 @@ const getCustomPointBounds = (
     };
   }
 
-  const minX = Math.min(...points.map((point) => point.x));
-  const maxX = Math.max(...points.map((point) => point.x));
-  const minY = Math.min(...points.map((point) => point.y));
-  const maxY = Math.max(...points.map((point) => point.y));
+  // Performance optimization: Using standard loop prevents call stack exceeded
+  // errors on spread operator and avoids GC pressure from intermediate array creation
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
+  }
+
   const width = Math.max(10, maxX - minX);
   const height = Math.max(10, maxY - minY);
 
@@ -636,21 +647,30 @@ const getElementBounds = (el) => {
     );
     const cx = safeNum(el.x, 0) + pointBounds.centerX;
     const cy = safeNum(el.y, 0) + pointBounds.centerY;
-    const transformedPoints = pointBounds.points.map((point) => {
+    // Performance optimization: Hoist trig math and avoid map loops
+    // to prevent intermediate array creation overhead.
+    const cosRad = Math.cos(rad);
+    const sinRad = Math.sin(rad);
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    for (let i = 0; i < pointBounds.points.length; i++) {
+      const point = pointBounds.points[i];
       const relX = point.x - pointBounds.centerX;
       const relY = point.y - pointBounds.centerY;
-      return {
-        x: cx + relX * Math.cos(rad) - relY * Math.sin(rad),
-        y: cy + relX * Math.sin(rad) + relY * Math.cos(rad),
-      };
-    });
+      const x = cx + relX * cosRad - relY * sinRad;
+      const y = cy + relX * sinRad + relY * cosRad;
 
-    return {
-      minX: Math.min(...transformedPoints.map((point) => point.x)),
-      maxX: Math.max(...transformedPoints.map((point) => point.x)),
-      minY: Math.min(...transformedPoints.map((point) => point.y)),
-      maxY: Math.max(...transformedPoints.map((point) => point.y)),
-    };
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+
+    return { minX, maxX, minY, maxY };
   }
 
   const bounds = getVisualBounds(el);
@@ -658,21 +678,38 @@ const getElementBounds = (el) => {
   const h = bounds.h;
   const cx = safeNum(el.x, 0) + w / 2;
   const cy = safeNum(el.y, 0) + h / 2;
+
+  // Performance optimization: Hoist trig math and eliminate intermediate array
+  // allocations via .map() for computing bounds.
+  const cosRad = Math.cos(rad);
+  const sinRad = Math.sin(rad);
+  const hw = w / 2;
+  const hh = h / 2;
+
   const corners = [
-    { x: -w / 2, y: -h / 2 },
-    { x: w / 2, y: -h / 2 },
-    { x: w / 2, y: h / 2 },
-    { x: -w / 2, y: h / 2 },
-  ].map((point) => ({
-    x: cx + point.x * Math.cos(rad) - point.y * Math.sin(rad),
-    y: cy + point.x * Math.sin(rad) + point.y * Math.cos(rad),
-  }));
-  return {
-    minX: Math.min(...corners.map((c) => c.x)),
-    maxX: Math.max(...corners.map((c) => c.x)),
-    minY: Math.min(...corners.map((c) => c.y)),
-    maxY: Math.max(...corners.map((c) => c.y)),
-  };
+    { x: -hw, y: -hh },
+    { x: hw, y: -hh },
+    { x: hw, y: hh },
+    { x: -hw, y: hh },
+  ];
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+
+  for (let i = 0; i < corners.length; i++) {
+    const point = corners[i];
+    const x = cx + point.x * cosRad - point.y * sinRad;
+    const y = cy + point.x * sinRad + point.y * cosRad;
+
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+
+  return { minX, maxX, minY, maxY };
 };
 
 const getStarPath = (w, h, points = 5, innerScale = 0.5) => {
