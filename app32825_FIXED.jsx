@@ -4433,19 +4433,21 @@ const AppContent = () => {
         <button
           onClick={() => setZoom((z) => Math.min(4, z + 0.1))}
           title="Zoom In"
-          className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-all"
+          aria-label="Zoom In"
+          className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-all focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
         >
-          <ZoomIn size={16} />
+          <ZoomIn size={16} aria-hidden="true" />
         </button>
-        <span className="text-[10px] font-mono text-slate-300 font-bold w-9 text-center">
+        <span aria-live="polite" className="text-[10px] font-mono text-slate-300 font-bold w-9 text-center">
           {Math.round(zoom * 100)}%
         </span>
         <button
           onClick={() => setZoom((z) => Math.max(0.1, z - 0.1))}
           title="Zoom Out"
-          className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-all"
+          aria-label="Zoom Out"
+          className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-all focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
         >
-          <ZoomOut size={16} />
+          <ZoomOut size={16} aria-hidden="true" />
         </button>
 
         <div className="h-5 w-[1.5px] bg-slate-700/50 mx-0.5" />
