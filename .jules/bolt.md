@@ -1,0 +1,3 @@
+## 2025-02-18 - Optimized Geometric Bounds Calculation (O(n) instead of O(4n) + Allocation)
+**Learning:** Spread syntax `...array` in functions like `Math.max()` pushes values to the JavaScript call stack, causing `Maximum call stack size exceeded` errors on very large arrays (e.g. detailed custom shape paths). Furthermore, chaining `.map()` followed by spread syntax allocates numerous intermediate arrays which taxes the garbage collector inside high-frequency operations like dragging/resizing.
+**Action:** When computing min/max over potentially large arrays of geometric points or coordinates, always use a standard `for` loop to update variables locally rather than relying on spread syntax and array higher-order functions.
