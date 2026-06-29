@@ -5510,22 +5510,24 @@ const AppContent = () => {
                         </div>
                         <div className="flex gap-1.5 shrink-0">
                           <button
+                            aria-label="Move Layer Up"
                             onClick={(e) => {
                               e.stopPropagation();
                               moveLayerLocal(el.id, "up");
                             }}
-                            className="p-1.5 bg-slate-800 rounded hover:text-indigo-400 hover:bg-slate-700 transition-colors"
+                            className="p-1.5 bg-slate-800 rounded hover:text-indigo-400 hover:bg-slate-700 transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
                           >
-                            <ArrowUp size={14} />
+                            <ArrowUp size={14} aria-hidden="true" />
                           </button>
                           <button
+                            aria-label="Move Layer Down"
                             onClick={(e) => {
                               e.stopPropagation();
                               moveLayerLocal(el.id, "down");
                             }}
-                            className="p-1.5 bg-slate-800 rounded hover:text-indigo-400 hover:bg-slate-700 transition-colors"
+                            className="p-1.5 bg-slate-800 rounded hover:text-indigo-400 hover:bg-slate-700 transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
                           >
-                            <ArrowDown size={14} />
+                            <ArrowDown size={14} aria-hidden="true" />
                           </button>
                         </div>
                       </div>
@@ -6071,21 +6073,23 @@ const AppContent = () => {
                     </span>
                     <div className="flex gap-3">
                       <button
+                        aria-label="Move Layer Up"
                         onClick={() => moveLayerLocal(selectedElement.id, "up")}
-                        className="p-2.5 bg-slate-800 rounded-lg hover:bg-indigo-600 hover:text-white transition-all text-indigo-400 flex items-center gap-2"
+                        className="p-2.5 bg-slate-800 rounded-lg hover:bg-indigo-600 hover:text-white transition-all text-indigo-400 flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
                       >
-                        <ArrowUp size={16} />{" "}
+                        <ArrowUp size={16} aria-hidden="true" />{" "}
                         <span className="text-[10px] font-bold uppercase">
                           Up
                         </span>
                       </button>
                       <button
+                        aria-label="Move Layer Down"
                         onClick={() =>
                           moveLayerLocal(selectedElement.id, "down")
                         }
-                        className="p-2.5 bg-slate-800 rounded-lg hover:bg-indigo-600 hover:text-white transition-all text-indigo-400 flex items-center gap-2"
+                        className="p-2.5 bg-slate-800 rounded-lg hover:bg-indigo-600 hover:text-white transition-all text-indigo-400 flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
                       >
-                        <ArrowDown size={16} />{" "}
+                        <ArrowDown size={16} aria-hidden="true" />{" "}
                         <span className="text-[10px] font-bold uppercase">
                           Down
                         </span>
