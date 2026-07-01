@@ -496,6 +496,23 @@ const getIntrinsicBounds = (el) => {
   };
 };
 
+const getBoundsFromPoints = (points) => {
+  // Performance Optimization: Prevent 'Maximum call stack size exceeded' errors
+  // and reduce GC pressure by avoiding spread syntax and map functions.
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
+  }
+  return { minX, maxX, minY, maxY };
+};
+
 const getCustomPointBounds = (
   customPoints,
   fallbackW = 100,
@@ -523,10 +540,7 @@ const getCustomPointBounds = (
     };
   }
 
-  const minX = Math.min(...points.map((point) => point.x));
-  const maxX = Math.max(...points.map((point) => point.x));
-  const minY = Math.min(...points.map((point) => point.y));
-  const maxY = Math.max(...points.map((point) => point.y));
+  const { minX, maxX, minY, maxY } = getBoundsFromPoints(points);
   const width = Math.max(10, maxX - minX);
   const height = Math.max(10, maxY - minY);
 
@@ -645,12 +659,7 @@ const getElementBounds = (el) => {
       };
     });
 
-    return {
-      minX: Math.min(...transformedPoints.map((point) => point.x)),
-      maxX: Math.max(...transformedPoints.map((point) => point.x)),
-      minY: Math.min(...transformedPoints.map((point) => point.y)),
-      maxY: Math.max(...transformedPoints.map((point) => point.y)),
-    };
+    return getBoundsFromPoints(transformedPoints);
   }
 
   const bounds = getVisualBounds(el);
@@ -667,12 +676,7 @@ const getElementBounds = (el) => {
     x: cx + point.x * Math.cos(rad) - point.y * Math.sin(rad),
     y: cy + point.x * Math.sin(rad) + point.y * Math.cos(rad),
   }));
-  return {
-    minX: Math.min(...corners.map((c) => c.x)),
-    maxX: Math.max(...corners.map((c) => c.x)),
-    minY: Math.min(...corners.map((c) => c.y)),
-    maxY: Math.max(...corners.map((c) => c.y)),
-  };
+  return getBoundsFromPoints(corners);
 };
 
 const getStarPath = (w, h, points = 5, innerScale = 0.5) => {
