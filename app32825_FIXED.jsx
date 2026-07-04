@@ -523,10 +523,15 @@ const getCustomPointBounds = (
     };
   }
 
-  const minX = Math.min(...points.map((point) => point.x));
-  const maxX = Math.max(...points.map((point) => point.x));
-  const minY = Math.min(...points.map((point) => point.y));
-  const maxY = Math.max(...points.map((point) => point.y));
+  // Performance Optimization: Prevent 'Maximum call stack size exceeded' errors by replacing spread min/max with loops
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
+  }
   const width = Math.max(10, maxX - minX);
   const height = Math.max(10, maxY - minY);
 
@@ -645,12 +650,17 @@ const getElementBounds = (el) => {
       };
     });
 
-    return {
-      minX: Math.min(...transformedPoints.map((point) => point.x)),
-      maxX: Math.max(...transformedPoints.map((point) => point.x)),
-      minY: Math.min(...transformedPoints.map((point) => point.y)),
-      maxY: Math.max(...transformedPoints.map((point) => point.y)),
-    };
+    // Performance Optimization: Prevent 'Maximum call stack size exceeded' errors by replacing spread min/max with loops
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (let i = 0; i < transformedPoints.length; i++) {
+      const p = transformedPoints[i];
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+
+    return { minX, maxX, minY, maxY };
   }
 
   const bounds = getVisualBounds(el);
@@ -667,12 +677,16 @@ const getElementBounds = (el) => {
     x: cx + point.x * Math.cos(rad) - point.y * Math.sin(rad),
     y: cy + point.x * Math.sin(rad) + point.y * Math.cos(rad),
   }));
-  return {
-    minX: Math.min(...corners.map((c) => c.x)),
-    maxX: Math.max(...corners.map((c) => c.x)),
-    minY: Math.min(...corners.map((c) => c.y)),
-    maxY: Math.max(...corners.map((c) => c.y)),
-  };
+  // Performance Optimization: Prevent 'Maximum call stack size exceeded' errors by replacing spread min/max with loops
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < corners.length; i++) {
+    const c = corners[i];
+    if (c.x < minX) minX = c.x;
+    if (c.x > maxX) maxX = c.x;
+    if (c.y < minY) minY = c.y;
+    if (c.y > maxY) maxY = c.y;
+  }
+  return { minX, maxX, minY, maxY };
 };
 
 const getStarPath = (w, h, points = 5, innerScale = 0.5) => {
